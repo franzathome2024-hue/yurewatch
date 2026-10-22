@@ -1,4 +1,4 @@
-# YureWatch — Japan Earthquake & EEW Viewer (v0.2.0)
+# YureWatch — Japan Earthquake & EEW Viewer (v0.2.1)
 
 A dark, map-first viewer for **Japan's earthquake information, Earthquake Early
 Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installable
@@ -32,6 +32,7 @@ setting before they can read a warning.
 - [Languages](#languages)
 - [Build the APK](#build-the-apk)
 - [Demo mode](#demo-mode)
+- [Audio and speech](#audio-and-speech)
 - [Data sources & honesty rules](#data-sources--honesty-rules)
 - [Architecture](#architecture)
 - [Tests](#tests)
@@ -52,7 +53,9 @@ setting before they can read a warning.
 | **Event list** | One row per event on a shared grid — intensity, epicentre, magnitude, age — aligned so values can be compared down the column. |
 | **Event detail** | Max intensity, hypocentre, coordinates, origin/issued/received times (kept distinct), tsunami statement, per-station observations, source provenance. Unknown values print `—`, never `0`. |
 | **Connection health** | Connection state in the header *in words*, data freshness in the status strip, and a diagnostics panel (batches, rejected records, duplicates, last error) inside the info panel. A stalled transport is never labelled "up to date" just because the last packet was recent. |
-| **Tsunami** | Latest 津波予報 with grades, areas and heights (progressive disclosure). |
+| **Tsunami** | Latest 津波予報 with grades, areas and heights; a chip in the status strip while a bulletin is in force. **Tsunami forecast-region layer** (`津波予報区`, JMA GIS data) colouring only the areas the bulletin names. |
+| **Spoken alerts** | Optional TTS through the platform voice (`speechSynthesis` → Android system TTS), Japanese or English to match the UI, deduped per revision, cancellations announced, tests and simulated alerts never spoken. |
+| **Map detail** | Coastline from Natural Earth 1:10m at 0.0015° (≈2× the vertices of v0.1.1), lakes as holes, islands ≥ 0.01 km². Detail limits documented and measured in [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). |
 | **Map legend** | Collapsed button on the map; explains marker shapes as well as intensity colours, and says explicitly that no intensity-distribution map is provided. |
 | **Demo mode** | Nine deterministic scenarios, all visibly marked `SIMULATION`, kept in a separate "開発者向け" group. |
 | **Languages** | Japanese (default) and English, switchable from the header and the info panel, applied instantly to every panel, label, column header, error and accessibility name, and persisted through Android `SharedPreferences`. |
@@ -126,15 +129,15 @@ simulations.
 
 ### Android APK
 
-**Download the built APK (v0.1.1):**
-[yurewatch-0.1.1.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/yurewatch-0.1.1.apk)
-— SHA-256 `d5ddfd9d98289986e7298813458961c849fbcb47c34b52d4e98ffb2e26389c86`
-(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/SHA256SUMS)).
+**Download the built APK (v0.2.1):**
+[yurewatch-0.2.1.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.2.1/yurewatch-0.2.1.apk)
+— SHA-256 `3aaa29df2daafaeeee3e3456520b55985baa7d8b070b622d4607eaa956b23c72`
+(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.2.1/SHA256SUMS)).
 Android 7.0 (API 24) or newer. You will need to allow installation from
 unknown sources, because this is not distributed through Google Play.
 
-Updating from v0.1.0: CI builds are signed with a *throwaway* key, so Android
-will refuse to install v0.1.1 over v0.1.0 with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
+Updating: CI builds are signed with a *throwaway* key, so Android refuses to
+install a new release over an older one with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
 Uninstall the old version first (`adb uninstall net.yurewatch.app`, or long-press
 the icon → Uninstall). Your language preference is stored per app install, so it
 is reset by a reinstall.
@@ -142,12 +145,12 @@ is reset by a reinstall.
 To build it yourself instead:
 
 ```bash
-# Build (produces build/yurewatch-0.1.1.apk)
+# Build (produces build/yurewatch-0.2.1.apk)
 npm ci
 bash tools/build-apk.sh
 
 # Install on a connected device
-adb install -r build/yurewatch-0.1.1.apk
+adb install -r build/yurewatch-0.2.1.apk
 ```
 
 The app opens directly into the map. It does **not** start a local server, ask
@@ -307,6 +310,22 @@ other.
 
 ---
 
+## Audio and speech
+
+Both channels are **off by default** and both require an explicit tap.
+
+| | Tone | Voice |
+| --- | --- | --- |
+| Engine | WebAudio oscillators, no bundled audio file | `speechSynthesis` → the platform TTS (Android system TTS in the APK) |
+| Network needed | no | no, but a Japanese voice must be installed on the device |
+| Speaks for | warning / update / forecast | warning / update / forecast / **cancellation** / tsunami bulletin |
+| Never for | test transmissions, simulated alerts (unless `?demoAudio=1`) | same, plus never invented numbers: fields JMA did not issue are left out of the sentence |
+| If unavailable | silent (no error) | the toggle shows a localised reason instead of pretending to work |
+
+Details, failure states and exactly what is and is not verified: [docs/AUDIO.md](docs/AUDIO.md).
+
+---
+
 ## Data sources & honesty rules
 
 Full detail, including terms review and rejected sources:
@@ -398,10 +417,10 @@ Key decisions (full rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md))
 ## Tests
 
 ```bash
-npm test                  # 203 unit tests (vitest, jsdom)
+npm test                  # 229 unit tests (vitest, jsdom)
 npm run typecheck         # tsc --noEmit, strict
 npm run build             # tsc + vite + single-file inliner (+ external-ref check)
-node tools/verify-web.mjs # 63 browser integration checks (needs playwright)
+node tools/verify-web.mjs # 68 browser integration checks (needs playwright)
 node tools/screenshots.mjs # regenerates docs/screenshots/ from dist/
 bash tools/build-apk.sh   # produces a signed, verified APK
 ```

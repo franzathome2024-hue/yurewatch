@@ -30,10 +30,24 @@ NE = "https://naciscdn.org/naturalearth/10m/cultural/"
 CACHE = os.path.join(os.path.dirname(__file__), ".naturalearth")
 BOUNDS = (127.5, 24.0, 148.0, 46.5)  # lon_min, lat_min, lon_max, lat_max
 
+# Simplification tolerance per source, in degrees. The previous build used 0.006
+# (~660 m) for prefectures, which visibly cut corners off bays and peninsulas once
+# the map was zoomed. 0.0015 (~165 m) keeps an order of magnitude more shape while
+# staying well inside Natural Earth's own 1:10m generalisation error — refining
+# past this point would only add vertices, not accuracy.
 SOURCES = {
-    "ne_10m_admin_1_states_provinces": ("shp", 0.006),
-    "ne_10m_admin_0_countries": ("shp", 0.018),
+    "ne_10m_admin_1_states_provinces": ("shp", 0.0015),
+    "ne_10m_admin_0_countries": ("shp", 0.008),
 }
+
+# Islands smaller than this (deg²) are dropped; ~1e-6 deg² ≈ 0.01 km², i.e. a
+# ~100 m islet — enough to keep harbour breakwaters out without losing real
+# islands. The previous threshold (1e-5) discarded ~7 islands.
+MIN_ISLAND_AREA = 1e-6
+
+# Interior rings (lakes, calderas, deep bays that close) above this area are kept
+# so Lake Biwa, Lake Saroma and similar features are not filled in as land.
+MIN_HOLE_AREA = 2e-5
 
 
 def fetch(name: str) -> str:
@@ -70,13 +84,29 @@ def rings(geom, tolerance: float):
         polys = [p for p in getattr(unary_union(geom), "geoms", []) if isinstance(p, Polygon)]
     out = []
     for poly in polys:
-        if poly.area < 1e-5:  # drop sub-pixel slivers
+        if poly.area < MIN_ISLAND_AREA:
             continue
         ext = [[round(x, 3), round(y, 3)] for x, y in poly.exterior.coords]
         if len(ext) >= 4:
             out.append(ext)
-        # inner rings (lakes/bays) are dropped: at this scale they add noise only
+        # Interior rings are kept as separate closed rings. The renderer fills
+        # with the even-odd/composite rule, so a hole drawn inside its parent ring
+        # punches back through to the ocean colour. Dropping them (as v0.1 did)
+        # turned every lake and closed bay into land.
+        for inner in poly.interiors:
+            hole = [[round(x, 3), round(y, 3)] for x, y in inner.coords]
+            if len(hole) >= 4 and abs(_ring_area(hole)) >= MIN_HOLE_AREA:
+                out.append(hole)
     return out
+
+
+def _ring_area(ring) -> float:
+    s = 0.0
+    for i in range(len(ring) - 1):
+        x1, y1 = ring[i]
+        x2, y2 = ring[i + 1]
+        s += x1 * y2 - x2 * y1
+    return s / 2.0
 
 
 def main() -> int:
@@ -130,7 +160,16 @@ def main() -> int:
             "sourceUrl": "https://www.naturalearthdata.com/",
             "bounds": BOUNDS,
             "generator": "scripts/build_map_data.py",
-            "note": "Coastlines simplified for display. Not for navigation or measurement.",
+            "processing": (
+                "Natural Earth 1:10m admin-1 (Japan) and admin-0 (neighbours) simplified with "
+                f"Douglas-Peucker ({SOURCES['ne_10m_admin_1_states_provinces'][1]} deg prefectures, "
+                f"{SOURCES['ne_10m_admin_0_countries'][1]} deg neighbours); islands >= {MIN_ISLAND_AREA} deg² kept; "
+                f"interior rings (lakes) >= {MIN_HOLE_AREA} deg² kept; coordinates rounded to 3 decimals."
+            ),
+            "note": (
+                "Coastline detail is limited by the source: Natural Earth 1:10m holds only ~160 polygon parts for "
+                "Japan, so small islands and fine harbour detail are absent at high zoom. Not for navigation or measurement."
+            ),
         },
         "prefectures": prefectures,
         "land": neighbours,

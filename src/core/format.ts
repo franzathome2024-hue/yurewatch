@@ -106,3 +106,16 @@ export function eewStateLabel(state: EewAlert['state'] | 'idle'): string {
 export function eewStateLabelSecondary(state: EewAlert['state']): string {
   return tIn(getLocale() === 'ja' ? 'en' : 'ja', EEW_STATE_KEYS[state] ?? 'alert.state.idle');
 }
+
+/** JMA tsunami grade → message key. Unknown grades fall back to a neutral label. */
+const GRADE_KEYS: Record<string, 'grade.majorWarning' | 'grade.warning' | 'grade.watch' | 'grade.nonEffective'> = {
+  MajorWarning: 'grade.majorWarning',
+  Warning: 'grade.warning',
+  Watch: 'grade.watch',
+  NonEffective: 'grade.nonEffective',
+};
+
+export function tsunamiGradeLabel(grade: string): string {
+  const key = GRADE_KEYS[grade];
+  return key ? t(key) : t('grade.default');
+}

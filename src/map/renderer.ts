@@ -2,7 +2,8 @@ import { hasIntensity, scaleStyle } from '../core/intensity';
 import type { Point, Viewport } from './geo';
 import { worldToScreen } from './geo';
 import type { MapGeometry } from './mapData';
-import type { MapScene } from './scene';
+import { tsunamiGradeColor, withAlpha, type MapScene } from './scene';
+import { tsunamiLayer } from './tsunamiData';
 import type { MapTheme } from './theme';
 
 /**
@@ -17,6 +18,7 @@ export class MapRenderer {
   private ctx: CanvasRenderingContext2D | null;
   private landPaths: Path2D[] = [];
   private prefPaths = new Map<string, Path2D[]>();
+  private tsunamiPaths = new Map<number, Path2D>();
   private viewport: Viewport = { width: 1, height: 1, dpr: 1 };
 
   constructor(
@@ -44,9 +46,21 @@ export class MapRenderer {
       }
       return path;
     };
+    // One Path2D per shape: a prefecture's islands AND its interior rings (lakes,
+    // enclosed bays) go into a single path, then filled with the even-odd rule so
+    // the holes punch back through instead of being painted as land.
     this.landPaths = this.geometry.land.map((l) => toPath([l]));
     for (const pref of this.geometry.prefectures) {
-      this.prefPaths.set(pref.code, pref.rings.map((r) => toPath([r])));
+      this.prefPaths.set(pref.code, [toPath(pref.rings)]);
+    }
+
+    // Tsunami forecast regions are a separate layer with their own geometry.
+    try {
+      for (const region of tsunamiLayer().regions) {
+        this.tsunamiPaths.set(region.code, toPath(region.rings.map((points) => ({ points }))));
+      }
+    } catch {
+      // A geometry problem must never take the map down; the layer is optional.
     }
   }
 
@@ -119,7 +133,7 @@ export class MapRenderer {
     ctx.strokeStyle = this.theme.landStroke;
     ctx.lineWidth = 0.8 / scale;
     for (const path of this.landPaths) {
-      ctx.fill(path);
+      ctx.fill(path, 'evenodd');
       ctx.stroke(path);
     }
 
@@ -128,19 +142,29 @@ export class MapRenderer {
       const style = scene.prefectureStyles.get(pref.code);
       const paths = this.prefPaths.get(pref.code);
       if (!paths) continue;
-      if (style?.fill) {
-        ctx.fillStyle = style.fill;
-        for (const p of paths) ctx.fill(p);
-      } else {
-        ctx.fillStyle = this.theme.prefFill;
-        for (const p of paths) ctx.fill(p);
-      }
+      ctx.fillStyle = style?.fill ?? this.theme.prefFill;
+      for (const p of paths) ctx.fill(p, 'evenodd');
       ctx.strokeStyle = style?.stroke ?? this.theme.prefStroke;
       ctx.lineWidth = (style?.lineWidth ?? 0.7) / scale;
       ctx.setLineDash((style?.dash ?? []).map((v) => v / scale));
       for (const p of paths) ctx.stroke(p);
       ctx.setLineDash([]);
     }
+    // Tsunami forecast regions: painted over the land/sea boundary but under the
+    // markers, so an active warning is visible without hiding the epicentre.
+    if (scene.tsunami && scene.tsunami.regions.length) {
+      for (const hit of scene.tsunami.regions) {
+        const path = this.tsunamiPaths.get(hit.code);
+        if (!path) continue;
+        const colour = tsunamiGradeColor(hit.grade);
+        ctx.fillStyle = withAlpha(colour, 0.34);
+        ctx.fill(path, 'evenodd');
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 2 / scale;
+        ctx.stroke(path);
+      }
+    }
+
     ctx.restore();
 
     // ---- overlays (screen space) ----

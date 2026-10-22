@@ -93,7 +93,85 @@ arithmetic so a future change cannot silently exceed the limit.
 6. **Timestamps are JST strings without a zone** (`2026/10/22 07:45:00.123`), and
    some are unparsable. `parseJst()` is strict and returns `null`.
 
-## 2. Not connected (and not simulated)
+## 2. In use — bundled geographic data
+
+Two different geographic products are bundled. They are **not** interchangeable,
+and the app never presents one as the other.
+
+### 2a. Basemap: Natural Earth 1:10m (public domain)
+
+| Property | Value |
+| --- | --- |
+| Dataset | `ne_10m_admin_1_states_provinces` (Japan, 47 features), `ne_10m_admin_0_countries` (neighbouring land) |
+| Source | <https://www.naturalearthdata.com/> (NACIS CDN) |
+| Licence | Public domain — no attribution required, no share-alike |
+| Bundled file | `src/data/japan-map.json` (~189 KiB, 11,351 vertices, 162 rings) |
+| Generator | `scripts/build_map_data.py` (reproducible; downloads, simplifies, clips) |
+| Processing | Douglas-Peucker 0.0015° for Japan, 0.008° for neighbours; islands ≥ 1e-6 deg²; lakes ≥ 2e-5 deg² kept as hole rings; coordinates rounded to 3 dp |
+
+**What it is:** Natural Earth's *administrative* polygons. There is no separate
+"coastline" layer in the data: the land/water edge the user sees is the exterior
+ring of the prefecture (and country) polygons. Prefecture borders and the
+coastline therefore come from the same source and cannot drift apart, which is
+why alert outlines and markers stay aligned with the coast at every zoom level.
+
+**Known limitation (measured, not guessed).** Natural Earth 1:10m is generalised.
+Against 国土数値情報 C23 海岸線 (a 1:25,000 national coastline, below), a random
+sample of 9,776 shoreline vertices around Kantō shows a **median offset of
+≈1.0 km, p90 ≈7.9 km**. At the default country framing that is invisible; past
+roughly ×3 zoom the shapes read as blocky (Tokyo Bay, Bōsō, the Seto Inland Sea
+islands). The app does not claim survey accuracy and the legend says the layer is
+for orientation, not navigation.
+
+**Why the higher-detail source is not bundled.** See 2c. Short version: mixing a
+detailed coastline with generalised fills puts two different shorelines on the
+same screen (≈1 km apart, i.e. several pixels at working zoom), and polygonising
+a line-only dataset would invent topology the source does not define.
+
+### 2b. Tsunami forecast regions: 気象庁 予報区等GISデータ「津波予報区」
+
+| Property | Value |
+| --- | --- |
+| Dataset | 津波予報区 (tsunami forecast regions), file `20240520_AreaTsunami_GIS.zip`, data date **2024-05-14** |
+| Source | <https://www.data.jma.go.jp/developer/gis.html> (JMA 予報区等GISデータ) |
+| Licence | 公共データ利用規約（第1.0版） — Japan's Public Data Licence 1.0, CC BY 4.0 compatible. Attribution **and** a statement that the data was modified are required |
+| CRS | JGD2011 (EPSG:6668) — WGS84-compatible for display |
+| Bundled file | `src/data/tsunami-areas.json` (211 KiB, 66 regions, 320 rings, 12,542 vertices) |
+| Generator | `scripts/build_tsunami_areas.py` (documented, reproducible) |
+| Attribution (shown in-app) | 出典：気象庁ホームページ「予報区等GISデータ（津波予報区）」を加工して作成 |
+
+**What it is:** the regions JMA uses when it issues 津波警報 / 津波注意報 / 津波予報.
+The source stores each region as a MultiLineString whose parts are *closed* rings;
+the generator treats them as polygon outlines, drops rings below 0.00035 deg²
+(~3.5 km²) while always keeping each region's largest ring, simplifies at 0.004°
+(~440 m) and rounds to 3 decimals. 113,764 islet rings and 8.9 M vertices were
+reduced to 12,542 vertices, so the layer costs 211 KiB instead of ~90 MB.
+
+**Excluded on purpose:** four features carry `code = "0"` and names 帰属未定1–4 —
+JMA itself marks them *unassigned*. They are not in the bundle; inventing an
+identifier would fabricate a code the authority did not issue.
+
+**What it is not:** not a coastline, and **not a tsunami inundation hazard zone**.
+The app states both in the legend and in the info panel, and no inundation data
+is bundled or implied.
+
+**How it is used:** the layer paints only the regions *named by the currently
+received bulletin* (`matchRegionsByName`), each in its own grade colour. Areas a
+bulletin names that cannot be matched to geometry are counted and disclosed in
+the info panel rather than dropped silently. Nothing is ever inferred from an
+earthquake's location, and a cancelled bulletin paints nothing.
+
+### 2c. Evaluated and deliberately not bundled
+
+| Dataset | Terms | Verdict |
+| --- | --- | --- |
+| 国土数値情報 C23 海岸線 (MLIT, coastline) | 公共データ利用規約 1.0 — redistribution permitted with attribution | **Verified, usable, not bundled.** Per-prefecture shapefiles (~3 MB each, 47 files). Measured ~1 km median offset from the Natural Earth fills, so drawing it over the current basemap would show two shorelines. It becomes viable only together with polygon data from the same family for the land fill. |
+| 気象庁 予報区等GISデータ（地震情報／細分区域, 緊急地震速報／府県予報区） | same PDL 1.0 | Usable, but the app already highlights EEW areas by prefecture name; a second regional geometry set would duplicate the same information with a different boundary definition. |
+| GSI 基盤地図情報 / 地球地図日本 | 基盤地図情報の利用規約 (attribution, some products require registration) | Not evaluated further: registration/licence review not completed, so not bundled. |
+| INI JMA region geoshapes (geoshape.ex.nii.ac.jp) | Research-institute mirror of JMA region data; terms not verified | **Not used** — the primary JMA source was available and verifiable. |
+| `trigger-info.bosai.go.jp` JMA_TNM_WARN feature service | Service terms not stated for redistribution | **Not used** for bundled geometry; treated as a research pointer only. |
+
+## 3. Not connected (and not simulated)
 
 | Source | Status | Reason |
 | --- | --- | --- |
@@ -103,7 +181,7 @@ arithmetic so a future change cannot silently exceed the limit.
 | **気象庁 震度データベース** | Not used | HTML search interface, not an API; scraping is out of scope. |
 | **JMA XML direct** (xml.kishou.go.jp) | Not used | Requires a push endpoint ( Laboratory / 防災情報XML) — infrastructure out of scope for v0.1; documented as an option. |
 
-## 3. Adding a source (the integration interface)
+## 4. Adding a source (the integration interface)
 
 A new provider only has to satisfy two shapes:
 

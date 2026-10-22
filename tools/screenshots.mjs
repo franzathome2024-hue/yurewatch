@@ -42,6 +42,7 @@ const shots = [
   { name: 'desktop-detail', lang: 'ja', viewport: [1440, 900], query: '', action: 'detail' },
   { name: 'desktop-info', lang: 'ja', viewport: [1440, 900], query: '', action: 'info' },
   { name: 'desktop-legend', lang: 'ja', viewport: [1440, 900], query: '', action: 'legend' },
+  { name: 'desktop-tsunami', lang: 'ja', viewport: [1440, 900], query: '?demo=tsunami' },
   { name: 'tablet-live', lang: 'ja', viewport: [768, 1024], query: '' },
   { name: 'mobile-live', lang: 'ja', viewport: [390, 844], query: '' },
   { name: 'mobile-eew-warning', lang: 'ja', viewport: [390, 844], query: '?demo=warning' },

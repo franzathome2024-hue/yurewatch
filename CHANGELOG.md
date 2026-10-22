@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.2.1 — 2026-10-22
+
+Data and honesty release: a real tsunami forecast-region layer, spoken alerts with
+a tested policy, and a coastline/data audit that records what the geometry can and
+cannot do.
+
+### Added
+
+- **Tsunami forecast-region map layer** (`src/map/tsunamiData.ts`,
+  `scripts/build_tsunami_areas.py`, `src/data/tsunami-areas.json`). Built from
+  JMA's own 予報区等GISデータ「津波予報区」 (dataset date 2024-05-14, JGD2011) under
+  the 公共データ利用規約 第1.0版, with the required modification notice. 70 source
+  features → 66 bundled regions (4 features JMA marks 帰属未定 are excluded), 8.9 M
+  source vertices → 12,542. Only regions named by the *currently received* bulletin
+  are painted, each in its own grade colour; unmatched names are counted and shown,
+  cancelled bulletins paint nothing, and nothing is ever inferred from an
+  earthquake's location.
+- **Tsunami state chip** in the status strip while a bulletin is in force.
+- **Spoken alerts** (`src/ui/speech.ts`, `src/core/announce.ts`): platform TTS in
+  the active UI language, one announcement per revision, cancellations announced
+  with explicit "not an all-clear" wording, test and (by default) simulated alerts
+  never spoken, missing fields omitted rather than guessed. Unavailable voices
+  produce a localised reason instead of a dead toggle.
+- **Tsunami demo scenario** (`?demo=tsunami`) — warning + advisory + non-effective
+  areas, clearly marked SIMULATION.
+- `docs/AUDIO.md`; the data-source section of `docs/DATA_SOURCES.md` now covers
+  every geographic dataset evaluated, including the ones deliberately not used.
+
+### Changed
+
+- **Coastline detail roughly doubled**: Douglas-Peucker tolerance 0.006° → 0.0015°
+  for Japan, island floor 1e-5 → 1e-6 deg², and lakes/enclosed bays are now kept as
+  interior rings (5,286 → 10,034 vertices, 134 → 136 rings, file 104 → 189 KiB).
+- Land and prefecture fills use the **even-odd** rule so lake holes punch through
+  instead of being painted as land (Lake Biwa, Lake Saroma, calderas).
+- Legend explains the tsunami-region layer separately from the intensity scale and
+  states that it is not an inundation-hazard map.
+- Settings gained the tsunami-layer toggle and the spoken-alert toggle.
+- Version `0.2.1` (versionCode 4).
+
+### Fixed
+
+- A prefecture's islands and holes are compiled into one path per shape, so a hole
+  can no longer be drawn as an independent filled island.
+- Speech never overlaps: the in-flight utterance is cancelled before the next one.
+
+### Notes / not delivered
+
+- Higher-detail coastline (国土数値情報 C23 海岸線, PDL 1.0) was verified as usable
+  but is **not** bundled: it sits ~1 km (median) away from the Natural Earth fills,
+  so overlaying it would show two shorelines. Evidence and the path forward are in
+  `docs/DATA_SOURCES.md` §2c.
+- The APK is still built, signed and verified but **not launched on a device or
+  emulator** in this environment (no `/dev/kvm`); audio and speech are therefore
+  unverified on hardware.
+
 ## v0.2.0 — 2026-10-22
 
 Complete interface rebuild. No change to the data pipeline, the parsers, the EEW

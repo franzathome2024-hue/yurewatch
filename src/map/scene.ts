@@ -1,5 +1,5 @@
 import { hasIntensity, scaleStyle } from '../core/intensity';
-import type { EarthquakeEvent, EewAlert, JmaScale } from '../core/models';
+import type { EarthquakeEvent, EewAlert, JmaScale, TsunamiGrade, TsunamiInfo } from '../core/models';
 import { resolvePrefecture } from '../data/prefectures';
 import {
   JAPAN_BOUNDS,
@@ -14,6 +14,7 @@ import {
   type Viewport,
 } from './geo';
 import type { MapGeometry } from './mapData';
+import { matchRegionsByName, type TsunamiRegion } from './tsunamiData';
 import type { MapTheme } from './theme';
 import { t } from '../i18n';
 
@@ -61,6 +62,22 @@ export interface SceneLabel {
   color: string;
 }
 
+/** A tsunami forecast region that the current bulletin actually names. */
+export interface TsunamiRegionHit {
+  code: number;
+  name: string;
+  grade: TsunamiGrade;
+  region: TsunamiRegion;
+}
+
+export interface TsunamiLayerScene {
+  regions: TsunamiRegionHit[];
+  /** Areas named by the bulletin that could not be matched to geometry. */
+  unmatched: string[];
+  /** Newest bulletin's issue time, or null when unknown. */
+  issuedAt: number | null;
+}
+
 export interface MapScene {
   viewport: Viewport;
   camera: Camera;
@@ -76,6 +93,8 @@ export interface MapScene {
     label: string;
     sublabel: string | null;
   } | null;
+  /** Tsunami forecast regions to paint; null when the layer is off. */
+  tsunami: TsunamiLayerScene | null;
   graticule: { vertical: number[]; horizontal: number[] };
   scaleBar: { px: number; label: string };
   attribution: string;
@@ -97,6 +116,10 @@ export interface SceneInput {
   now: number;
   /** Max markers drawn (perf guard on old devices). */
   markerLimit?: number;
+  /** Newest tsunami bulletin (already reduced to "current" by the store). */
+  tsunami?: TsunamiInfo | null;
+  /** User preference: draw the 津波予報区 layer at all. */
+  tsunamiLayerVisible?: boolean;
 }
 
 const MARKER_MIN = 6;
@@ -115,6 +138,50 @@ export function markerOpacity(ageMs: number | null): number {
   if (ageMs < 6 * 60 * 60_000) return 0.86;
   if (ageMs < 24 * 60 * 60_000) return 0.68;
   return 0.5;
+}
+
+function gradeRank(grade: TsunamiGrade): number {
+  switch (grade) {
+    case 'MajorWarning':
+      return 5;
+    case 'Warning':
+      return 4;
+    case 'Watch':
+      return 3;
+    case 'NonEffective':
+      return 2;
+    case 'Checking':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function pickGrade(bulletin: TsunamiInfo, name: string): TsunamiGrade {
+  let best: TsunamiGrade = 'None';
+  for (const area of bulletin.areas) {
+    if (area.name !== name) continue;
+    if (gradeRank(area.grade) > gradeRank(best)) best = area.grade;
+  }
+  return best;
+}
+
+/** Colour for a tsunami grade. Deliberately distinct from the EEW red. */
+export function tsunamiGradeColor(grade: TsunamiGrade): string {
+  switch (grade) {
+    case 'MajorWarning':
+      return '#c2185b';
+    case 'Warning':
+      return '#d1495b';
+    case 'Watch':
+      return '#c98a2b';
+    case 'NonEffective':
+      return '#6f8faf';
+    case 'Checking':
+      return '#6f8faf';
+    default:
+      return '#6f8faf';
+  }
 }
 
 export function buildScene(input: SceneInput): MapScene {
@@ -148,6 +215,33 @@ export function buildScene(input: SceneInput): MapScene {
       alertOutline: alertScale !== undefined,
       dash: alertScale !== undefined ? [5, 4] : [],
     });
+  }
+
+  // ---- tsunami forecast regions --------------------------------------
+  // Only regions named by the current bulletin are shown. A cancelled bulletin
+  // paints nothing: "cancelled" is not "still in force, but greyed out".
+  let tsunami: TsunamiLayerScene | null = null;
+  if (input.tsunamiLayerVisible !== false) {
+    const bulletin = input.tsunami ?? null;
+    if (bulletin && !bulletin.cancelled && bulletin.areas.length) {
+      const { matched, unmatched } = matchRegionsByName(bulletin.areas.map((a) => a.name));
+      const gradeByName = new Map<string, TsunamiGrade>();
+      for (const area of bulletin.areas) {
+        const existing = gradeByName.get(area.name);
+        if (existing === undefined || gradeRank(area.grade) > gradeRank(existing)) {
+          gradeByName.set(area.name, area.grade);
+        }
+      }
+      const regions: TsunamiRegionHit[] = [];
+      for (const region of matched) {
+        const grade = gradeByName.get(region.name) ?? pickGrade(bulletin, region.name);
+        if (!grade || grade === 'None' || grade === 'Unknown') continue;
+        regions.push({ code: region.code, name: region.name, grade, region });
+      }
+      tsunami = { regions, unmatched, issuedAt: bulletin.issuedAt };
+    } else {
+      tsunami = { regions: [], unmatched: [], issuedAt: bulletin?.issuedAt ?? null };
+    }
   }
 
   // ---- markers ------------------------------------------------------
@@ -303,6 +397,7 @@ export function buildScene(input: SceneInput): MapScene {
     labels,
     markers,
     eew,
+    tsunami,
     graticule: { vertical, horizontal },
     scaleBar,
     attribution: t('map.attribution'),

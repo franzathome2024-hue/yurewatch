@@ -2,6 +2,7 @@ import { DARK_MAP_THEME } from '../map/theme';
 import { geometry } from '../map/mapData';
 import { MapView } from '../map/view';
 import { formatJstClock } from '../core/time';
+import { tsunamiGradeLabel } from '../core/format';
 import { getLocaleVersion, t } from '../i18n';
 import { ingestEvents, intensityByPrefecture } from '../state/events';
 import { effectiveFreshness, freshnessLabel, selectEvent, type AppState, type Store } from '../state/store';
@@ -21,6 +22,9 @@ export interface AppHandlers {
   onDemoStop: () => void;
   onExportState: () => void;
   onToggleSound: () => void;
+  onToggleTsunamiLayer: () => void;
+  onToggleVoice?: () => void;
+  describeVoice?: () => string;
   onRecenter: () => void;
   onZoom: (factor: number) => void;
 }
@@ -59,6 +63,8 @@ export class App {
   private statusSource = el('span', { class: 'statusStrip__source' });
   private statusFresh = el('span', { class: 'statusStrip__fresh' });
   private statusMode = el('span', { class: 'statusStrip__mode' });
+  /** Tsunami state, visible without opening any panel while a bulletin is in force. */
+  private tsunamiChip = el('button', { class: 'tsunamiChip', type: 'button' });
   private modeChip = el('span', { class: 'modeChip' });
   private mapButtons: { canvas: HTMLElement; zoomIn: HTMLElement; zoomOut: HTMLElement; recenter: HTMLElement } | null = null;
   private view: SideView = 'list';
@@ -74,6 +80,9 @@ export class App {
     this.detail = createDetails({ onClose: () => handlers.onSelectEvent(null) });
     this.info = createInfoPanel({
       onToggleSound: handlers.onToggleSound,
+      onToggleTsunamiLayer: handlers.onToggleTsunamiLayer,
+      onToggleVoice: handlers.onToggleVoice,
+      describeVoice: handlers.describeVoice,
       onDemoStart: handlers.onDemoStart,
       onDemoStop: handlers.onDemoStop,
       onExport: handlers.onExportState,
@@ -189,6 +198,7 @@ export class App {
       this.statusSource,
       el('span', { class: 'statusStrip__dot', 'aria-hidden': 'true' }),
       this.statusFresh,
+      this.tsunamiChip,
       el('span', { class: 'statusStrip__spacer' }),
       el('span', { class: 'statusStrip__clock', text: '' }),
     );
@@ -201,6 +211,12 @@ export class App {
       el('div', { class: 'alertSlot' }, this.alertPanel.el),
       work,
     );
+
+    this.tsunamiChip.hidden = true;
+    this.tsunamiChip.addEventListener('click', () => {
+      this.setView('info');
+      this.setSheetExpanded(true);
+    });
 
     this.setView('list');
     this.setSheetExpanded(false);
@@ -283,6 +299,7 @@ export class App {
     // the SIMULATION marking itself, so the map's duplicate badge is dropped and
     // the banner is tightened to keep the map usable.
     this.root.classList.toggle('app--alert', Boolean(state.alert));
+    this.updateTsunamiChip(state);
     this.root.dataset.conn = state.health.state;
 
     /* ---- sheet summary ----------------------------------------------- */
@@ -319,11 +336,18 @@ export class App {
     const selected = selectEvent(state);
     const focus = selected ?? state.events[0] ?? null;
     const perPref = focus ? intensityByPrefecture([focus]) : new Map<string, number>();
+    const tsunamiSig = state.tsunami
+      ? `${state.tsunami.id}:${state.tsunami.cancelled}:${state.tsunami.receivedAt}:${state.tsunami.areas
+          .map((a) => `${a.name}/${a.grade}`)
+          .join(',')}`
+      : 'none';
     const signature = [
       state.events.map((e) => `${e.id}:${e.maxIntensity}:${e.revision}`).join(','),
       state.selectedEventId,
       state.alert ? `${state.alert.eventId}:${state.alert.serial}:${state.alert.state}` : 'none',
       focus?.id ?? 'none',
+      tsunamiSig,
+      String(state.preferences.tsunamiLayer),
       getLocaleVersion(),
     ].join('|');
     if (signature === this.lastMapSignature) {
@@ -334,6 +358,8 @@ export class App {
         selectedId: state.selectedEventId,
         alert: state.alert,
         intensityByPref: perPref,
+        tsunami: state.tsunami,
+        tsunamiLayerVisible: state.preferences.tsunamiLayer,
         now: state.now,
       });
       return;
@@ -346,6 +372,8 @@ export class App {
       selectedId: state.selectedEventId,
       alert: state.alert,
       intensityByPref: perPref,
+      tsunami: state.tsunami,
+      tsunamiLayerVisible: state.preferences.tsunamiLayer,
       now: state.now,
     });
   }
@@ -360,6 +388,31 @@ export class App {
 
   zoomMap(factor: number): void {
     this.map?.zoomBy(factor);
+  }
+
+  /**
+   * The status strip carries the tsunami state because a tsunami bulletin is not
+   * an EEW and must not be squeezed into the EEW strip. It shows only what the
+   * current bulletin actually says; a cancelled or absent bulletin shows nothing
+   * (取消/なし are never implied by a greyed-out colour).
+   */
+  private updateTsunamiChip(state: AppState): void {
+    const bulletin = state.tsunami;
+    const inForce = bulletin && !bulletin.cancelled ? bulletin.areas.filter((a) => a.grade !== 'None' && a.grade !== 'Unknown') : [];
+    if (!bulletin || bulletin.cancelled || inForce.length === 0) {
+      this.tsunamiChip.hidden = true;
+      return;
+    }
+    const rank: Record<string, number> = { MajorWarning: 5, Warning: 4, Watch: 3, NonEffective: 2, Checking: 1 };
+    const strongest = inForce.reduce((acc, a) => ((rank[a.grade] ?? 0) > (rank[acc.grade] ?? 0) ? a : acc), inForce[0]!);
+    const gradeLabel = tsunamiGradeLabel(strongest.grade);
+    this.tsunamiChip.hidden = false;
+    this.tsunamiChip.dataset.grade = strongest.grade;
+    this.tsunamiChip.textContent = `${gradeLabel} · ${t('tsunami.areas', { n: inForce.length })}`;
+    this.tsunamiChip.setAttribute(
+      'aria-label',
+      `${t('tsunami.sectionTitle')}: ${gradeLabel}, ${t('tsunami.areas', { n: inForce.length })}`,
+    );
   }
 
   /** Diagnostics for the QA harness (viewport targets, framing checks). */

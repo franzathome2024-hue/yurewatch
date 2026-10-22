@@ -1,9 +1,12 @@
 import { scaleStyle } from '../core/intensity';
 import { formatAge, formatJst } from '../core/time';
+import { tsunamiGradeLabel } from '../core/format';
 import { LOCALES, getLocale, getLocaleVersion, setLocale, t, type Locale, type MessageKey } from '../i18n';
 import { connectionLabel, effectiveFreshness, freshnessLabel, initialState, type AppState } from '../state/store';
 import { disclosure, el, clear, badge } from './dom';
 import { createDemoPanel } from './demoPanel';
+import { tsunamiGradeColor, withAlpha } from '../map/scene';
+import { matchRegionsByName, tsunamiLayer } from '../map/tsunamiData';
 
 /**
  * The 情報 (information) panel.
@@ -15,6 +18,10 @@ import { createDemoPanel } from './demoPanel';
  */
 export function createInfoPanel(handlers: {
   onToggleSound: () => void;
+  onToggleTsunamiLayer: () => void;
+  onToggleVoice?: () => void;
+  /** Localised one-line reason the voice cannot be used, or '' when it can. */
+  describeVoice?: () => string;
   onDemoStart: (id: string) => void;
   onDemoStop: () => void;
   onExport: () => void;
@@ -24,6 +31,9 @@ export function createInfoPanel(handlers: {
   let builtLocale = -1;
   let updaters: Array<() => void> = [];
   let soundButton: HTMLButtonElement | null = null;
+  let tsunamiButton: HTMLButtonElement | null = null;
+  let voiceButton: HTMLButtonElement | null = null;
+  let voiceNote: HTMLElement | null = null;
   let langButtons = new Map<Locale, HTMLButtonElement>();
   const getState = (): AppState => stateRef ?? initialState();
 
@@ -104,6 +114,24 @@ export function createInfoPanel(handlers: {
       tsunamiBody.appendChild(
         el('p', { class: 'infoNote', text: t('tsunami.issued', { time: formatJst(ts.issuedAt), provider: ts.source.provider }) }),
       );
+      // What the coloured geometry on the map actually is (and is not).
+      const match = matchRegionsByName(ts.areas.map((a) => a.name));
+      tsunamiBody.append(
+        el('p', { class: 'infoNote', text: t('tsunami.layerBody') }),
+        el('p', { class: 'infoNote', text: t('tsunami.layerNotInundation') }),
+        el('p', {
+          class: 'infoNote',
+          text: state.preferences.tsunamiLayer
+            ? t('tsunami.layerMatched', { n: match.matched.length })
+            : t('tsunami.layerOff'),
+        }),
+      );
+      if (match.unmatched.length) {
+        tsunamiBody.appendChild(el('p', { class: 'infoNote infoNote--warn', text: t('tsunami.layerUnmatched', { n: match.unmatched.length }) }));
+      }
+      tsunamiBody.appendChild(
+        el('p', { class: 'infoNote infoNote--mono', text: t('tsunami.layerSource', { date: tsunamiLayer().meta.datasetDate }) }),
+      );
     });
     root.appendChild(
       disclosure({ title: t('tsunami.sectionTitle'), subtitle: t('tsunami.sectionSubtitle'), tone: 'warn', content: () => tsunamiBody }),
@@ -123,6 +151,13 @@ export function createInfoPanel(handlers: {
     /* ---- 4. settings ---- */
     soundButton = el('button', { class: 'segBtn', type: 'button' });
     soundButton.addEventListener('click', () => handlers.onToggleSound());
+
+    voiceButton = el('button', { class: 'segBtn', type: 'button' });
+    voiceButton.addEventListener('click', () => handlers.onToggleVoice?.());
+    voiceNote = el('span', { class: 'setRow__help' });
+
+    tsunamiButton = el('button', { class: 'segBtn', type: 'button' });
+    tsunamiButton.addEventListener('click', () => handlers.onToggleTsunamiLayer());
 
     const langRow = el('div', { class: 'segmented', role: 'group', 'aria-label': t('set.language') });
     for (const locale of LOCALES) {
@@ -154,6 +189,21 @@ export function createInfoPanel(handlers: {
             el('span', { class: 'setRow__help', text: t('set.soundHelp') }),
           ),
           soundButton,
+        ),
+        el('div', { class: 'setRow' },
+          el('div', { class: 'setRow__text' },
+            el('span', { class: 'setRow__label', text: t('set.voice') }),
+            el('span', { class: 'setRow__help', text: t('set.voiceHelp') }),
+            voiceNote,
+          ),
+          voiceButton,
+        ),
+        el('div', { class: 'setRow' },
+          el('div', { class: 'setRow__text' },
+            el('span', { class: 'setRow__label', text: t('set.tsunamiLayer') }),
+            el('span', { class: 'setRow__help', text: t('set.tsunamiLayerHelp') }),
+          ),
+          tsunamiButton,
         ),
         el('p', { class: 'infoNote', text: t('set.sourceHelp') }),
       ),
@@ -192,6 +242,23 @@ export function createInfoPanel(handlers: {
       }
       for (const u of updaters) u();
 
+      if (voiceButton) {
+        const on = state.preferences.voiceEnabled;
+        voiceButton.textContent = on ? t('set.soundOn') : t('set.soundOff');
+        voiceButton.setAttribute('aria-pressed', on ? 'true' : 'false');
+        voiceButton.setAttribute('aria-label', `${t('set.voice')}: ${on ? t('set.soundOn') : t('set.soundOff')}`);
+      }
+      if (voiceNote) {
+        voiceNote.textContent = handlers.describeVoice?.() ?? '';
+      }
+
+      if (tsunamiButton) {
+        const on = state.preferences.tsunamiLayer;
+        tsunamiButton.textContent = on ? t('set.soundOn') : t('set.soundOff');
+        tsunamiButton.setAttribute('aria-pressed', on ? 'true' : 'false');
+        tsunamiButton.setAttribute('aria-label', `${t('set.tsunamiLayer')}: ${on ? t('set.soundOn') : t('set.soundOff')}`);
+      }
+
       if (soundButton) {
         const on = state.preferences.soundEnabled;
         soundButton.textContent = on ? t('set.soundOn') : t('set.soundOff');
@@ -218,17 +285,7 @@ function metaRow(label: string, value: string): HTMLElement {
   );
 }
 
-const GRADE_KEYS: Record<string, MessageKey> = {
-  MajorWarning: 'grade.majorWarning',
-  Warning: 'grade.warning',
-  Watch: 'grade.watch',
-  NonEffective: 'grade.nonEffective',
-};
-
-function gradeLabel(grade: string): string {
-  const key = GRADE_KEYS[grade];
-  return key ? t(key) : t('grade.default');
-}
+const gradeLabel = tsunamiGradeLabel;
 
 function gradeTone(grade: string): 'danger' | 'warn' | 'info' | 'neutral' {
   if (grade === 'MajorWarning' || grade === 'Warning') return 'danger';
@@ -298,6 +355,21 @@ export function createLegend(): { el: HTMLElement; update: (s: AppState) => void
           el('span', { text: t('map.legendSelected') }),
         ),
       ),
+      el('p', { class: 'legend__sub', text: t('map.legendTsunami') }),
+      el('div', { class: 'legend__swatches', 'aria-hidden': 'true' },
+        ...[
+          { grade: 'MajorWarning' as const, key: 'grade.majorWarning' as const },
+          { grade: 'Warning' as const, key: 'grade.warning' as const },
+          { grade: 'Watch' as const, key: 'grade.watch' as const },
+          { grade: 'NonEffective' as const, key: 'grade.nonEffective' as const },
+        ].map((g) =>
+          el('span', { class: 'legend__swatchItem' },
+            el('span', { class: 'legend__swatch legend__swatch--region', style: `border-color:${tsunamiGradeColor(g.grade)};background:${withAlpha(tsunamiGradeColor(g.grade), 0.34)}` }),
+            el('span', { class: 'legend__swatchLabel', text: t(g.key) }),
+          ),
+        ),
+      ),
+      el('p', { class: 'legend__note', text: t('tsunami.layerNotInundation') }),
       el('p', { class: 'legend__note', text: t('map.legendUnavailable') }),
     );
     toggle.querySelector('.mapBtn__label')!.textContent = t('map.legend');

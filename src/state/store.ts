@@ -28,6 +28,10 @@ export interface AppPreferences {
   demoAudio: boolean;
   /** Reduce motion (also honoured via prefers-reduced-motion). */
   reduceMotion: boolean;
+  /** Draw the JMA tsunami forecast-region layer when a bulletin names areas. */
+  tsunamiLayer: boolean;
+  /** Speak alerts with the platform voice. Off until the user turns it on. */
+  voiceEnabled: boolean;
 }
 
 export interface AppState {
@@ -70,7 +74,7 @@ export const initialState = (mode: AppMode = 'live', now = Date.now()): AppState
   alertHistory: [],
   tsunami: null,
   demo: null,
-  preferences: { soundEnabled: false, demoAudio: false, reduceMotion: false },
+  preferences: { soundEnabled: false, demoAudio: false, reduceMotion: false, tsunamiLayer: true, voiceEnabled: false },
   diagnostics: {
     batches: 0,
     rejectedRecords: 0,

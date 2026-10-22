@@ -6,7 +6,10 @@ import { LiveFeed, type FeedEvent } from './net/liveFeed';
 import { Store, initialState, type AppMode, type AppState } from './state/store';
 import { initLocale, normalizeLocale, onLocaleChange, setLocale, t } from './i18n';
 import { App } from './ui/app';
+import { Speech } from './ui/speech';
+import { planAnnouncement, planTsunamiAnnouncement } from './core/announce';
 import { AlertAudio } from './ui/audio';
+import type { EewAlert } from './core/models';
 
 /**
  * Bootstrap.
@@ -60,6 +63,8 @@ const prefersReducedMotion =
 const store = new Store(initialState(mode, Date.now()));
 store.dispatch({ type: 'preferences', patch: { soundEnabled: soundParam, demoAudio, reduceMotion: prefersReducedMotion } });
 
+const speech = new Speech();
+const spokenKeys = new Set<string>();
 const audio = new AlertAudio(() => store.get().preferences.soundEnabled);
 
 /* ------------------------------------------------------------------ *
@@ -124,6 +129,36 @@ function handleFeedEvent(event: FeedEvent): void {
       }
     }
   }
+
+  // Speech is a separate, user-enabled channel: it is gated on the *voice*
+  // preference, dedupes by alert revision, and never speaks for a test or a
+  // simulated alert unless the developer flag is on. Cancellations are spoken
+  // even though they are not audible alerts above, because a cancellation is a
+  // state change the user needs to hear about.
+  announce(after);
+  announceTsunami();
+}
+
+let speechFailed: string | null = null;
+
+function announce(alert: EewAlert | null): void {
+  const prefs = store.get().preferences;
+  const ctx = { enabled: prefs.voiceEnabled, demoAllowed: prefs.demoAudio };
+  const plan = planAnnouncement(alert, spokenKeys, ctx);
+  if (!plan) return;
+  spokenKeys.add(plan.key);
+  speech.speak(plan.text);
+}
+
+function announceTsunami(): void {
+  const prefs = store.get().preferences;
+  const ctx = { enabled: prefs.voiceEnabled, demoAllowed: prefs.demoAudio };
+  const info = store.get().tsunami;
+  if (info && store.get().mode === 'demo') return;
+  const plan = planTsunamiAnnouncement(info, spokenKeys, ctx);
+  if (!plan) return;
+  spokenKeys.add(plan.key);
+  speech.speak(plan.text);
 }
 
 liveFeed.on(handleFeedEvent);
@@ -183,6 +218,33 @@ ui = new App(store, {
   onDemoStart: (id) => startDemo(id),
   onDemoStop: () => startLive(),
   onExportState: () => downloadState(store.get()),
+  onToggleTsunamiLayer: () => {
+    const next = !store.get().preferences.tsunamiLayer;
+    store.dispatch({ type: 'preferences', patch: { tsunamiLayer: next } });
+  },
+  describeVoice: () => {
+    if (!store.get().preferences.voiceEnabled) {
+      const status = speech.status();
+      if (status === 'ready') return '';
+      if (status === 'no-voice') return t('voice.unavailable');
+      if (status === 'pending') return t('voice.pending');
+      return t('voice.unsupported');
+    }
+    if (speechFailed === 'no-voice') return t('voice.unavailable');
+    if (speechFailed === 'unsupported') return t('voice.unsupported');
+    return '';
+  },
+  onToggleVoice: () => {
+    const next = !store.get().preferences.voiceEnabled;
+    store.dispatch({ type: 'preferences', patch: { voiceEnabled: next } });
+    if (!next) speech.cancel();
+    else {
+      // Speaking the preview doubles as the permission/voice check the user needs.
+      const result = speech.speak(t('voice.previewText'));
+      if (!result.ok) speechFailed = result.reason ?? 'unsupported';
+      else speechFailed = null;
+    }
+  },
   onToggleSound: () => {
     const next = !store.get().preferences.soundEnabled;
     store.dispatch({ type: 'preferences', patch: { soundEnabled: next } });
@@ -277,6 +339,11 @@ window.YureWatchBack = () => {
 (window as unknown as { __yurewatch?: unknown }).__yurewatch = {
   map: () => ui?.debugState() ?? null,
   store: () => store.get(),
+  // QA harness only: drive the camera to a named view so coastline/overlay
+  // alignment can be inspected at real zoom levels without a device.
+  focus: (lon: number, lat: number) => ui?.focusMapOn(lon, lat),
+  zoom: (factor: number) => ui?.zoomMap(factor),
+  recenter: () => ui?.recenterMap(),
 };
 
 window.YureWatchInfo = () =>

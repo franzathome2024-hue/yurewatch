@@ -327,6 +327,53 @@ async function main() {
     .catch(() => false);
   check('stale data is labelled as stale in the status strip', staleSeen);
 
+  /* ---- tsunami forecast-region layer -------------------------------- */
+  await statePage.goto(`${base}?demo=tsunami&lang=ja`, { waitUntil: 'load' });
+  await statePage.waitForSelector('.app', { timeout: 15_000 });
+  const tsunamiReady = await statePage
+    .waitForFunction(() => Boolean(window.__yurewatch?.store?.()?.tsunami), { timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  const tsunamiState = await statePage.evaluate(() => {
+    const st = window.__yurewatch.store();
+    return {
+      areas: st.tsunami.areas.map((a) => `${a.name}:${a.grade}`),
+      chip: document.querySelector('.tsunamiChip')?.textContent ?? '',
+      chipHidden: document.querySelector('.tsunamiChip')?.hidden ?? true,
+    };
+  });
+  check('tsunami bulletin reaches the UI', tsunamiReady && tsunamiState.areas.length >= 4, JSON.stringify(tsunamiState.areas));
+  check(
+    'tsunami state is visible without opening a panel',
+    !tsunamiState.chipHidden && tsunamiState.chip.includes('津波警報'),
+    tsunamiState.chip,
+  );
+  check('tsunami chip says SIMULATION is demo data', await statePage.locator('.simBanner:not([hidden])').count() === 1);
+
+  // Turning the layer off must remove it from the scene without touching the data.
+  await statePage.locator('.sideTab[data-view="info"]').click();
+  await statePage.waitForTimeout(300);
+  const layerToggle = statePage.locator('.setRow', { hasText: '津波予報区レイヤー' }).locator('button');
+  await layerToggle.click();
+  await statePage.waitForTimeout(400);
+  const offToggle = await statePage.evaluate(() => window.__yurewatch.store().preferences.tsunamiLayer);
+  check('tsunami layer can be switched off', offToggle === false);
+  await layerToggle.click();
+
+  // No bulletin in live mode => nothing painted, and no fabricated areas.
+  await statePage.goto(`${base}?lang=ja`, { waitUntil: 'load' });
+  await statePage.waitForSelector('.app', { timeout: 15_000 });
+  await statePage.waitForTimeout(2_000);
+  const liveTsunami = await statePage.evaluate(() => {
+    const st = window.__yurewatch.store();
+    return { bulletin: st.tsunami, chipHidden: document.querySelector('.tsunamiChip')?.hidden ?? true };
+  });
+  check(
+    'no tsunami region is shown without an issued bulletin',
+    liveTsunami.bulletin === null && liveTsunami.chipHidden === true,
+    JSON.stringify(liveTsunami),
+  );
+
   const infoTab = statePage.locator('.sideTab[data-view="info"]');
   await infoTab.click();
   await statePage.waitForTimeout(400);

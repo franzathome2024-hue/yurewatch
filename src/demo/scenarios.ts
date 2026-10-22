@@ -607,6 +607,53 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     ],
   },
   {
+    id: 'tsunami',
+    label: '津波予報',
+    summary:
+      '津波警報・注意報の発表を再現します。地図には気象庁の津波予報区だけを着色し、地震の位置から区域を推測することはしません。',
+    durationMs: 45_000,
+    steps: [
+      { at: 0, connection: 'live', label: 'ライブ接続（デモ）' },
+      {
+        at: 600,
+        label: '地震情報（津波調査中）',
+        items: [
+          quake({
+            id: 'tsunami-quake-1',
+            origin: Date.now() - 60_000,
+            issue: Date.now() - 45_000,
+            type: 'DetailScale',
+            lat: 38.2,
+            lon: 142.1,
+            depth: 30,
+            mag: 7.9,
+            name: '宮城県沖',
+            maxScale: 40,
+            tsunami: 'Checking',
+            points: [
+              ['宮城県', '石巻市', 40],
+              ['岩手県', '大船渡市', 30],
+            ],
+          }),
+        ],
+      },
+      {
+        at: 2_500,
+        label: '津波警報（宮城県・岩手県）／津波注意報（福島県ほか）',
+        items: [
+          tsunami('demo-tsunami-1', Date.now() - 40_000, false, [
+            { name: '宮城県', grade: 'Warning', height: '３ｍ', value: 3 },
+            { name: '岩手県', grade: 'Warning', height: '３ｍ', value: 3 },
+            { name: '福島県', grade: 'Watch', height: '１ｍ', value: 1 },
+            { name: '茨城県', grade: 'Watch', height: '１ｍ', value: 1 },
+            { name: '千葉県九十九里・外房', grade: 'NonEffective' },
+          ]),
+        ],
+      },
+      { at: 45_000, label: 'シナリオ終了' },
+    ],
+  },
+  {
     id: 'unavailable',
     label: 'データ欠損',
     summary: '壊れたレコード・空応答を混在させ、不正データを捨てて表示を維持することを確認します。',

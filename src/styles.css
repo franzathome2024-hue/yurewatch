@@ -2114,3 +2114,55 @@ button {
     border: 1px solid CanvasText;
   }
 }
+
+/* v0.2.1 — tsunami forecast-region layer */
+.legend__swatch--region {
+  background-clip: padding-box;
+  border: 2px solid currentColor;
+}
+
+.infoNote--warn {
+  color: var(--warn);
+}
+
+/* Tsunami state, shown in the status strip only while a bulletin is in force. */
+.tsunamiChip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: center;
+  margin-left: var(--sp2);
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: var(--r1);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--warn);
+}
+
+.tsunamiChip[data-grade='MajorWarning'],
+.tsunamiChip[data-grade='Warning'] {
+  color: #f2777c;
+  background: rgba(229, 72, 77, 0.16);
+}
+
+.tsunamiChip[data-grade='Watch'] {
+  color: #f2c14e;
+  background: rgba(242, 193, 78, 0.14);
+}
+
+.tsunamiChip[data-grade='NonEffective'],
+.tsunamiChip[data-grade='Checking'] {
+  color: var(--text-2);
+  background: rgba(111, 137, 175, 0.16);
+}
+
+.tsunamiChip:hover {
+  filter: brightness(1.15);
+}

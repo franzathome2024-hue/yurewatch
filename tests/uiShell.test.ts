@@ -29,6 +29,7 @@ function boot(patch: (s: AppState) => AppState = (s) => s): { store: Store; app:
     onDemoStop: () => {},
     onExportState: () => {},
     onToggleSound: () => {},
+    onToggleTsunamiLayer: () => {},
     onRecenter: () => {},
     onZoom: () => {},
   });
@@ -94,6 +95,7 @@ describe('application shell', () => {
       onDemoStop: () => {},
       onExportState: () => {},
       onToggleSound: () => {},
+      onToggleTsunamiLayer: () => {},
       onRecenter: () => {},
       onZoom: () => {},
     });
@@ -234,8 +236,11 @@ describe('legend', () => {
     expect(panel.textContent).toContain('震度');
     expect(panel.textContent).toContain('EEW 震源');
     expect(panel.textContent).toContain('選択中の地震');
-    // Nine intensity steps are named, not only coloured.
-    expect(panel.querySelectorAll('.legend__swatchItem')).toHaveLength(9);
+    // The tsunami forecast-region layer is explained, and NOT as a coastline.
+    expect(panel.textContent).toContain('津波予報区');
+    expect(panel.textContent).toContain('浸水想定区域ではありません');
+    // Nine intensity steps plus four tsunami grades are named, not only coloured.
+    expect(panel.querySelectorAll('.legend__swatchItem')).toHaveLength(9 + 4);
   });
 
   it('localizes the legend', () => {
@@ -253,6 +258,7 @@ describe('info panel', () => {
   const mount = (handlers: Partial<Parameters<typeof createInfoPanel>[0]> = {}) => {
     const panel = createInfoPanel({
       onToggleSound: () => {},
+      onToggleTsunamiLayer: () => {},
       onDemoStart: () => {},
       onDemoStop: () => {},
       onExport: () => {},
