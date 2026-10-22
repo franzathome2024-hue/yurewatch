@@ -1,7 +1,8 @@
 import { hasIntensity, scaleStyle } from '../core/intensity';
 import type { EewAlert } from '../core/models';
-import { eewStateLabel, eewStateLabelEn, formatDepth, formatMagnitude } from '../core/format';
+import { eewStateLabel, eewStateLabelSecondary, formatDepth, formatMagnitude } from '../core/format';
 import { formatAge, formatJst, formatJstClock } from '../core/time';
+import { t, type MessageKey } from '../i18n';
 import { strongestAreas } from '../state/alert';
 import type { AppState } from '../state/store';
 import { badge, clear, el } from './dom';
@@ -12,12 +13,14 @@ import { badge, clear, el } from './dom';
  * colour, oversized numerals and a hard border.
  *
  * Honesty rules encoded here:
- *  - "予報" and "警報" are visually and textually distinct; a forecast never
- *    borrows the warning styling.
+ *  - 予報 / Forecast and 警報 / Warning are visually and textually distinct; a
+ *    forecast never borrows the warning styling.
  *  - Simulated and test alerts get their own badge and refuse the red warning
  *    treatment.
- *  - A predicted intensity is always labelled 予測 (prediction).
+ *  - A predicted intensity is always labelled as an estimate.
  *  - No countdown is invented; arrival times come from the source, per area.
+ *  - The headline is shown in the active language with the other language
+ *    underneath, so one screen reads correctly for both audiences.
  */
 export function createAlertPanel(): { el: HTMLElement; update: (s: AppState) => void } {
   const root = el('section', { class: 'alert', 'aria-live': 'polite', 'aria-atomic': 'false' });
@@ -45,20 +48,19 @@ export function createAlertPanel(): { el: HTMLElement; update: (s: AppState) => 
 
 function renderIdle(root: HTMLElement, state: AppState, offline: boolean): void {
   const head = el('div', { class: 'alert__head' },
-    el('span', { class: 'alert__kicker', text: '緊急地震速報' }),
-    badge(offline ? '状態不明' : '待機中', offline ? 'warn' : 'neutral'),
+    el('span', { class: 'alert__kicker', text: t('alert.kicker') }),
+    badge(offline ? t('alert.badge.unknown') : t('alert.badge.waiting'), offline ? 'warn' : 'neutral'),
   );
 
   const lastAlert = state.alertHistory[0];
   const body = el('div', { class: 'alert__idle' },
-    el('p', { class: 'alert__idleMain', text: offline ? '接続が切れているため、速報の有無を確認できません。' : '現在、緊急地震速報は発表されていません（受信範囲内）。' }),
-    el('p', { class: 'alert__note' },
-      offline
-        ? 'ネットワークが復旧すると自動的に再取得します。この表示は「発表がない」ことの証明ではありません。'
-        : '情報は数十秒おきに更新されます。速報が間に合わない場合があるため、この画面だけに頼らないでください。',
-    ),
+    el('p', { class: 'alert__idleMain', text: offline ? t('alert.idle.offlineMain') : t('alert.idle.onlineMain') }),
+    el('p', { class: 'alert__note', text: offline ? t('alert.idle.offlineNote') : t('alert.idle.onlineNote') }),
     lastAlert
-      ? el('p', { class: 'alert__meta' }, `最終受信: ${formatJst(lastAlert.issuedAt ?? lastAlert.receivedAt)}（${formatAge(lastAlert.issuedAt ?? lastAlert.receivedAt, state.now)}）`)
+      ? el('p', { class: 'alert__meta' }, t('alert.idle.lastReceived', {
+          time: formatJst(lastAlert.issuedAt ?? lastAlert.receivedAt),
+          age: formatAge(lastAlert.issuedAt ?? lastAlert.receivedAt, state.now),
+        }))
       : null,
   );
   root.append(head, body);
@@ -76,62 +78,58 @@ function renderAlert(root: HTMLElement, state: AppState, alert: EewAlert): void 
 
   const head = el('div', { class: 'alert__head' },
     el('span', { class: 'alert__kicker', text: eewStateLabel(alert.state) }),
-    el('span', { class: 'alert__en', text: eewStateLabelEn(alert.state) }),
+    el('span', { class: 'alert__en', text: eewStateLabelSecondary(alert.state) }),
     el('span', { class: 'alert__spacer' }),
-    alert.serial > 0 ? badge(`第${alert.serial}報`, 'neutral') : null,
-    sim ? badge('SIMULATION', 'sim') : null,
-    isTest ? badge('訓練/試験', 'warn') : null,
+    alert.serial > 0 ? badge(t('alert.serial', { n: alert.serial }), 'neutral') : null,
+    sim ? badge(t('demo.simBadge'), 'sim') : null,
+    isTest ? badge(t('alert.badge.test'), 'warn') : null,
   );
 
-  // ---- headline: predicted intensity ---------------------------------
+  // ---- headline: estimated intensity ---------------------------------
   const headline = el('div', { class: 'alert__headline' });
   if (isCancelled) {
     headline.appendChild(
       el('div', { class: 'alert__cancelled' },
-        el('strong', { text: '発表された緊急地震速報は取消されました' }),
-        el('span', { text: '取消は「揺れが無かった」ことを意味しません。実際の揺れの情報を確認してください。' }),
+        el('strong', { text: t('alert.cancelledTitle') }),
+        el('span', { text: t('alert.cancelledNote') }),
       ),
     );
   } else if (style) {
     headline.appendChild(
       el('div', { class: 'alert__scaleBlock', style: `--scale-color:${style.fill};--scale-text:${style.text}` },
-        el('span', { class: 'alert__scaleLabel', text: '予測最大震度' }),
+        el('span', { class: 'alert__scaleLabel', text: t('alert.scaleLabel') }),
         el('span', { class: 'alert__scaleValue', text: style.label }),
       ),
     );
     headline.appendChild(
       el('div', { class: 'alert__facts' },
-        fact('震源', alert.epicenter?.name ?? '震源不明'),
-        fact('規模', formatMagnitude(alert.epicenter?.magnitude ?? -1)),
-        fact('深さ', formatDepth(alert.epicenter?.depthKm ?? -1)),
+        fact(t('alert.fact.epicenter'), alert.epicenter?.name ?? t('alert.epicenterUnknown')),
+        fact(t('alert.fact.magnitude'), formatMagnitude(alert.epicenter?.magnitude ?? -1)),
+        fact(t('alert.fact.depth'), formatDepth(alert.epicenter?.depthKm ?? -1)),
       ),
     );
   } else {
     headline.appendChild(
       el('div', { class: 'alert__facts' },
-        fact('震源', alert.epicenter?.name ?? '震源不明'),
-        fact('規模', formatMagnitude(alert.epicenter?.magnitude ?? -1)),
-        fact('深さ', formatDepth(alert.epicenter?.depthKm ?? -1)),
-        fact('予測震度', '情報なし'),
+        fact(t('alert.fact.epicenter'), alert.epicenter?.name ?? t('alert.epicenterUnknown')),
+        fact(t('alert.fact.magnitude'), formatMagnitude(alert.epicenter?.magnitude ?? -1)),
+        fact(t('alert.fact.depth'), formatDepth(alert.epicenter?.depthKm ?? -1)),
+        fact(t('alert.fact.intensity'), t('alert.value.noInfo')),
       ),
     );
   }
 
   // ---- times ---------------------------------------------------------
   const times = el('div', { class: 'alert__times' },
-    timeChip('発生', formatJst(alert.originTime), alert.originTime),
-    timeChip('発表', formatJst(alert.issuedAt), alert.issuedAt),
-    el('span', { class: 'alert__age', text: `${formatAge(alert.issuedAt ?? alert.receivedAt, state.now)}受信` }),
+    timeChip(t('alert.time.origin'), formatJst(alert.originTime), alert.originTime),
+    timeChip(t('alert.time.issued'), formatJst(alert.issuedAt), alert.issuedAt),
+    el('span', { class: 'alert__age', text: t('age.received', { age: formatAge(alert.issuedAt ?? alert.receivedAt, state.now) }) }),
   );
 
-  const blocks: HTMLElement[] = [head, headline, times];
+  const blocks: Array<HTMLElement | null> = [head, headline, times];
 
   if (alert.epicenter?.provisional) {
-    blocks.push(
-      el('p', { class: 'alert__flag' },
-        '震源は「仮定震源要素」です。後続の情報で大きく変わる可能性があります。',
-      ),
-    );
+    blocks.push(el('p', { class: 'alert__flag' }, t('alert.provisional')));
   }
 
   // ---- arrival (source-provided only) --------------------------------
@@ -142,17 +140,17 @@ function renderAlert(root: HTMLElement, state: AppState, alert: EewAlert): void 
       const past = soonest.arrivalTime! <= state.now;
       blocks.push(
         el('div', { class: 'alert__arrival' },
-          el('span', { class: 'alert__arrivalLabel', text: past ? '主要動到達予測（経過）' : '最短の主要動到達予測' }),
+          el('span', { class: 'alert__arrivalLabel', text: past ? t('alert.arrival.past') : t('alert.arrival.soonest') }),
           el('span', { class: 'alert__arrivalValue', text: formatJstClock(soonest.arrivalTime) }),
-          el('span', { class: 'alert__arrivalArea', text: `${soonest.name}（気象庁の予測）` }),
-          el('span', { class: 'alert__arrivalNote', text: '現在地の到達時刻ではありません' }),
+          el('span', { class: 'alert__arrivalArea', text: t('alert.arrival.source', { area: soonest.name }) }),
+          el('span', { class: 'alert__arrivalNote', text: t('alert.arrival.disclaimer') }),
         ),
       );
     } else {
       blocks.push(
         el('div', { class: 'alert__arrival alert__arrival--none' },
-          el('span', { class: 'alert__arrivalLabel', text: '主要動到達予測' }),
-          el('span', { class: 'alert__arrivalArea', text: 'この電文には到達予測時刻が含まれていません' }),
+          el('span', { class: 'alert__arrivalLabel', text: t('alert.arrival.noneTitle') }),
+          el('span', { class: 'alert__arrivalArea', text: t('alert.arrival.noneBody') }),
         ),
       );
     }
@@ -164,8 +162,8 @@ function renderAlert(root: HTMLElement, state: AppState, alert: EewAlert): void 
     blocks.push(
       el('div', { class: 'alert__areas' },
         el('div', { class: 'alert__areasHead' },
-          el('span', { text: `警報対象区域（${alert.areas.length}）` }),
-          el('span', { class: 'alert__areasNote', text: '予測震度の高い順' }),
+          el('span', { text: t('alert.areas.title', { n: alert.areas.length }) }),
+          el('span', { class: 'alert__areasNote', text: t('alert.areas.order') }),
         ),
         el('ul', { class: 'alert__areaList' },
           ...top.map((a) => {
@@ -180,28 +178,18 @@ function renderAlert(root: HTMLElement, state: AppState, alert: EewAlert): void 
           }),
         ),
         alert.areas.length > top.length
-          ? el('p', { class: 'alert__more', text: `他 ${alert.areas.length - top.length} 区域` })
+          ? el('p', { class: 'alert__more', text: t('alert.areas.more', { n: alert.areas.length - top.length }) })
           : null,
       ),
     );
   } else if (!isCancelled) {
-    blocks.push(
-      el('p', { class: 'alert__flag' },
-        'この電文には警報対象区域が含まれていません。警報として扱わないでください。',
-      ),
-    );
+    blocks.push(el('p', { class: 'alert__flag' }, t('alert.areas.missing')));
   }
 
   // ---- footer note ---------------------------------------------------
-  blocks.push(
-    el('p', { class: 'alert__disclaimer' },
-      sim
-        ? 'SIMULATION: この速報はアプリ内のデモデータです。実際の地震情報ではありません。'
-        : '予測には誤差があり、続報で震源・震度・対象区域が変わることがあります。必ず気象庁の発表と自治体の指示を確認してください。',
-    ),
-  );
+  blocks.push(el('p', { class: 'alert__disclaimer' }, sim ? t('alert.sim') : t('alert.disclaimer')));
 
-  root.append(...blocks.filter(Boolean) as HTMLElement[]);
+  root.append(...(blocks.filter(Boolean) as HTMLElement[]));
 }
 
 function fact(label: string, value: string): HTMLElement {
@@ -214,19 +202,17 @@ function fact(label: string, value: string): HTMLElement {
 function timeChip(label: string, value: string, at: number | null): HTMLElement {
   return el('span', { class: 'alert__time' },
     el('span', { class: 'alert__timeLabel', text: label }),
-    el('span', { class: 'alert__timeValue', text: at === null ? '不明' : value }),
+    el('span', { class: 'alert__timeValue', text: at === null ? t('meta.unknown') : value }),
   );
 }
 
+const KIND_KEYS: Record<string, MessageKey> = {
+  '10': 'kind.mainNotArrived',
+  '11': 'kind.mainArrived',
+  '19': 'kind.plum',
+};
+
 function kindLabel(code: string): string {
-  switch (code) {
-    case '10':
-      return '主要動 未到達';
-    case '11':
-      return '主要動 到達';
-    case '19':
-      return 'PLUM法';
-    default:
-      return '';
-  }
+  const key = KIND_KEYS[code];
+  return key ? t(key) : '';
 }

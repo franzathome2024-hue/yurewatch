@@ -1,16 +1,17 @@
 import { hasIntensity, scaleStyle } from './intensity';
+import { getLocale, t, tIn, type MessageKey } from '../i18n';
 import type { EewAlert, Epicenter, EarthquakeEvent, TsunamiGrade } from './models';
 
-/** Display formatting helpers shared by all panels. */
+/** Display formatting helpers shared by all panels. Every string is localised. */
 
 export function formatMagnitude(m: number | null | undefined): string {
-  if (m === null || m === undefined || m < 0 || !Number.isFinite(m)) return '不明';
+  if (m === null || m === undefined || m < 0 || !Number.isFinite(m)) return t('meta.unknown');
   return `M${m.toFixed(1)}`;
 }
 
 export function formatDepth(km: number | null | undefined): string {
-  if (km === null || km === undefined || km < 0) return '不明';
-  if (km === 0) return 'ごく浅い';
+  if (km === null || km === undefined || km < 0) return t('meta.unknown');
+  if (Math.round(km) === 0) return t('details.depthShallow');
   return `${Math.round(km)}km`;
 }
 
@@ -18,7 +19,7 @@ export function formatDepth(km: number | null | undefined): string {
 export function eventSummary(ev: EarthquakeEvent): string {
   const bits: string[] = [];
   if (ev.epicenter) bits.push(formatMagnitude(ev.epicenter.magnitude));
-  if (ev.epicenter) bits.push(`深さ${formatDepth(ev.epicenter.depthKm)}`);
+  if (ev.epicenter) bits.push(`${t('details.kv.depth')}${formatDepth(ev.epicenter.depthKm)}`);
   return bits.join('・');
 }
 
@@ -32,91 +33,76 @@ export interface TsunamiLabel {
  * not upgrade "Checking" to "None" or vice versa.
  */
 export function tsunamiLabel(grade: TsunamiGrade | null | undefined): TsunamiLabel {
-  switch (grade) {
-    case 'None':
-      return { text: 'この地震による津波の心配はありません（気象庁）', tone: 'neutral' };
-    case 'NonEffective':
-      return { text: '若干の海面変動が予想されるが、被害の心配なし', tone: 'info' };
-    case 'Watch':
-      return { text: '津波注意報が発表されています', tone: 'warn' };
-    case 'Warning':
-      return { text: '津波警報が発表されています', tone: 'danger' };
-    case 'MajorWarning':
-      return { text: '大津波警報が発表されています', tone: 'danger' };
-    case 'Checking':
-      return { text: '津波の有無を調査中', tone: 'warn' };
-    default:
-      return { text: '津波情報は未受信です', tone: 'neutral' };
-  }
+  const map: Record<string, MessageKey> = {
+    None: 'tsunami.none',
+    NonEffective: 'tsunami.nonEffective',
+    Watch: 'tsunami.watch',
+    Warning: 'tsunami.warning',
+    MajorWarning: 'tsunami.majorWarning',
+    Checking: 'tsunami.checking',
+  };
+  const tone: Record<string, TsunamiLabel['tone']> = {
+    None: 'neutral',
+    NonEffective: 'info',
+    Watch: 'warn',
+    Warning: 'danger',
+    MajorWarning: 'danger',
+    Checking: 'warn',
+  };
+  const key = grade ? map[grade] : undefined;
+  if (!key) return { text: t('tsunami.unknown'), tone: 'neutral' };
+  return { text: t(key), tone: tone[grade as string] ?? 'neutral' };
 }
 
+const INFO_TYPE_KEYS: Record<string, MessageKey> = {
+  ScalePrompt: 'infoType.scalePrompt',
+  Destination: 'infoType.destination',
+  ScaleAndDestination: 'infoType.scaleAndDestination',
+  DetailScale: 'infoType.detailScale',
+  Foreign: 'infoType.foreign',
+  Other: 'infoType.other',
+};
+
 export function infoTypeLabel(type: string): string {
-  switch (type) {
-    case 'ScalePrompt':
-      return '震度速報';
-    case 'Destination':
-      return '震源に関する情報';
-    case 'ScaleAndDestination':
-      return '震度・震源に関する情報';
-    case 'DetailScale':
-      return '各地の震度に関する情報';
-    case 'Foreign':
-      return '遠地地震に関する情報';
-    case 'Other':
-      return 'その他の情報';
-    default:
-      return '地震情報';
-  }
+  return t(INFO_TYPE_KEYS[type] ?? 'infoType.default');
 }
 
 export function epicenterName(c: Epicenter | null): string {
-  return c?.name?.trim() || '震源不明';
+  return c?.name?.trim() || t('alert.epicenterUnknown');
 }
 
 export function coordinates(c: Epicenter | null): string {
-  if (!c) return '—';
+  if (!c) return t('meta.emDash');
   const lat = `${Math.abs(c.latitude).toFixed(1)}°${c.latitude >= 0 ? 'N' : 'S'}`;
   const lon = `${Math.abs(c.longitude).toFixed(1)}°${c.longitude >= 0 ? 'E' : 'W'}`;
   return `${lat} ${lon}`;
 }
 
-/** Highest predicted intensity across EEW areas, as a label. */
+/** Highest predicted intensity across EEW areas, as a short label. */
 export function eewIntensityLabel(alert: EewAlert): string {
-  if (!hasIntensity(alert.maxScaleTo)) return '不明';
-  return scaleStyle(alert.maxScaleTo).longLabel.replace('震度', '');
+  if (!hasIntensity(alert.maxScaleTo)) return t('meta.unknown');
+  const style = scaleStyle(alert.maxScaleTo);
+  return style.label;
 }
 
-export function eewStateLabel(state: EewAlert['state']): string {
-  switch (state) {
-    case 'forecast':
-      return '緊急地震速報（予報）';
-    case 'warning':
-      return '緊急地震速報（警報）';
-    case 'updated':
-      return '緊急地震速報（続報）';
-    case 'cancelled':
-      return '緊急地震速報（取消）';
-    case 'unavailable':
-      return '緊急地震速報（状態不明）';
-    default:
-      return '緊急地震速報なし';
-  }
+const EEW_STATE_KEYS: Record<string, MessageKey> = {
+  forecast: 'alert.state.forecast',
+  warning: 'alert.state.warning',
+  updated: 'alert.state.updated',
+  cancelled: 'alert.state.cancelled',
+  unavailable: 'alert.state.unavailable',
+  idle: 'alert.state.idle',
+};
+
+export function eewStateLabel(state: EewAlert['state'] | 'idle'): string {
+  return t(EEW_STATE_KEYS[state] ?? 'alert.state.idle');
 }
 
-/** English subtitle to avoid ambiguity for non-Japanese readers of docs/screenshots. */
-export function eewStateLabelEn(state: EewAlert['state']): string {
-  switch (state) {
-    case 'forecast':
-      return 'EEW FORECAST';
-    case 'warning':
-      return 'EEW WARNING';
-    case 'updated':
-      return 'EEW UPDATED';
-    case 'cancelled':
-      return 'EEW CANCELLED';
-    case 'unavailable':
-      return 'EEW UNKNOWN';
-    default:
-      return 'NORMAL';
-  }
+/**
+ * The same state in the *other* language, shown small next to the headline so a
+ * warning reads correctly to both a Japanese and an English speaker standing in
+ * front of the same screen.
+ */
+export function eewStateLabelSecondary(state: EewAlert['state']): string {
+  return tIn(getLocale() === 'ja' ? 'en' : 'ja', EEW_STATE_KEYS[state] ?? 'alert.state.idle');
 }

@@ -1,4 +1,5 @@
-import { DEMO_SCENARIOS } from '../demo/scenarios';
+import { DEMO_SCENARIOS, scenarioMessageKeys } from '../demo/scenarios';
+import { getLocaleVersion, t } from '../i18n';
 import type { AppState } from '../state/store';
 import { badge, clear, disclosure, el } from './dom';
 
@@ -13,7 +14,9 @@ export function createDemoPanel(handlers: {
   onExport: () => void;
 }): { el: HTMLElement; update: (s: AppState) => void } {
   const body = el('div', { class: 'demo__body' });
-  const subtitle = el('span', { class: 'disclosure__subtitle', text: '模擬データを再生（SIMULATION）' });
+  const subtitle = el('span', { class: 'disclosure__subtitle' });
+  const title = el('span', { class: 'disclosure__title' });
+  const simBadge = badge(t('demo.simBadge'), 'sim');
 
   const toggle = el('button', {
     class: 'disclosure__toggle',
@@ -21,12 +24,9 @@ export function createDemoPanel(handlers: {
     'aria-expanded': 'false',
   },
     el('span', { class: 'disclosure__chevron', 'aria-hidden': 'true', text: '›' }),
-    el('span', { class: 'disclosure__titles' },
-      el('span', { class: 'disclosure__title', text: 'デモ / テスト' }),
-      subtitle,
-    ),
+    el('span', { class: 'disclosure__titles' }, title, subtitle),
     el('span', { class: 'panel__spacer' }),
-    badge('SIMULATION', 'sim'),
+    simBadge,
   );
 
   const inner = el('div', { class: 'disclosure__body' }, body);
@@ -38,44 +38,49 @@ export function createDemoPanel(handlers: {
   });
 
   let signature = '';
+  let builtLocale = -1;
 
   return {
     el: root,
     update(state) {
+      title.textContent = t('demo.title');
+      const scenario = state.demo ? DEMO_SCENARIOS.find((s) => s.id === state.demo?.scenarioId) : undefined;
       subtitle.textContent = state.demo
-        ? `${state.demo.label} — ${state.demo.status === 'running' ? '再生中' : '終了'}`
-        : '模擬データを再生（SIMULATION）';
-      const sig = `${state.demo?.scenarioId ?? '-'}:${state.demo?.status ?? '-'}`;
+        ? t('demo.status', {
+            label: scenario ? t(scenarioMessageKeys(scenario.id).label) : state.demo.label,
+            state: state.demo.status === 'running' ? t('demo.running') : t('demo.finished'),
+          })
+        : t('demo.subtitle');
+
+      const sig = `${state.demo?.scenarioId ?? '-'}:${state.demo?.status ?? '-'}#${getLocaleVersion()}`;
       if (sig === signature) return;
       signature = sig;
+      builtLocale = getLocaleVersion();
       clear(body);
 
-      body.appendChild(
-        el('p', { class: 'demo__note' },
-          'ここから実行するデータはすべてアプリ内で生成した模擬データです。実際の地震情報ではありません。',
-        ),
-      );
+      body.appendChild(el('p', { class: 'demo__note' }, t('demo.note')));
 
       const grid = el('div', { class: 'demo__grid' });
-      for (const scenario of DEMO_SCENARIOS) {
-        const active = state.demo?.scenarioId === scenario.id && state.demo?.status === 'running';
+      for (const item of DEMO_SCENARIOS) {
+        const keys = scenarioMessageKeys(item.id);
+        const active = state.demo?.scenarioId === item.id && state.demo?.status === 'running';
         const button = el('button', {
           class: `demo__scenario${active ? ' is-active' : ''}`,
           type: 'button',
           'aria-pressed': active ? 'true' : 'false',
         },
-          el('span', { class: 'demo__scenarioLabel', text: scenario.label }),
-          el('span', { class: 'demo__scenarioSummary', text: scenario.summary }),
+          el('span', { class: 'demo__scenarioLabel', text: t(keys.label) }),
+          el('span', { class: 'demo__scenarioSummary', text: t(keys.summary) }),
         );
-        button.addEventListener('click', () => handlers.onStart(scenario.id));
+        button.addEventListener('click', () => handlers.onStart(item.id));
         grid.appendChild(button);
       }
       body.appendChild(grid);
 
       const actions = el('div', { class: 'demo__actions' });
-      const stop = el('button', { class: 'button button--ghost', type: 'button', text: 'デモを停止してライブへ' });
+      const stop = el('button', { class: 'button button--ghost', type: 'button', text: t('demo.stop') });
       stop.addEventListener('click', () => handlers.onStop());
-      const exportBtn = el('button', { class: 'button button--ghost', type: 'button', text: '状態をJSONで書き出す' });
+      const exportBtn = el('button', { class: 'button button--ghost', type: 'button', text: t('demo.export') });
       exportBtn.addEventListener('click', () => handlers.onExport());
       actions.append(stop, exportBtn);
       body.appendChild(actions);
@@ -83,14 +88,15 @@ export function createDemoPanel(handlers: {
       if (state.demo) {
         body.appendChild(
           el('div', { class: 'demo__status' },
-            el('span', { class: 'demo__statusLabel', text: state.demo.label }),
-            el('span', { class: 'demo__statusState', text: state.demo.status === 'running' ? '再生中' : '終了' }),
+            el('span', { class: 'demo__statusLabel', text: scenario ? t(scenarioMessageKeys(scenario.id).label) : state.demo.label }),
+            el('span', { class: 'demo__statusState', text: state.demo.status === 'running' ? t('demo.running') : t('demo.finished') }),
             el('span', { class: 'demo__progress', 'aria-hidden': 'true' },
               el('span', { class: 'demo__progressBar', style: `width:${Math.round(state.demo.progress * 100)}%` }),
             ),
           ),
         );
       }
+      void builtLocale;
     },
   };
 }

@@ -14,6 +14,7 @@ import { geometry, type MapGeometry } from './mapData';
 import { MapRenderer } from './renderer';
 import { buildScene, hitTest, type Marker, type MapScene, type SceneInput } from './scene';
 import type { MapTheme } from './theme';
+import { t } from '../i18n';
 
 /**
  * Interactive map surface: owns the canvas, the camera, gestures and the render
@@ -56,10 +57,10 @@ export class MapView {
     try {
       this.renderer = new MapRenderer(canvas, this.geometryData, theme);
     } catch (err) {
-      this.callbacks.onError?.(`地図を初期化できませんでした: ${String(err)}`);
+      this.callbacks.onError?.(t('map.error', { message: String(err) }));
     }
     if (this.renderer && !this.renderer.supported) {
-      this.callbacks.onError?.('この端末では地図を描画できません（Canvas 2D 非対応）');
+      this.callbacks.onError?.(t('map.canvasUnsupported'));
       this.renderer = null;
     }
     this.attach();

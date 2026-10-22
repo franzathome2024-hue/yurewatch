@@ -1,8 +1,13 @@
-# YureWatch — Japan Earthquake & EEW Viewer (v0.1)
+# YureWatch — Japan Earthquake & EEW Viewer (v0.1.1)
 
 A dark, map-first viewer for **Japan's earthquake information, Earthquake Early
 Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installable
 **Android APK** and as a single-file web build.
+
+The interface is **bilingual: Japanese (default) and English**, switched from the
+header and remembered across restarts. A fresh install opens in Japanese whatever
+the device language is — the data is Japanese, and nobody should have to find a
+setting before they can read a warning.
 
 > **YureWatch is an information viewer, not a warning system.** It does not
 > predict or independently detect earthquakes, it does not guarantee an alert
@@ -18,12 +23,13 @@ Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installabl
 - [What it does](#what-it-does)
 - [Screenshots](#screenshots)
 - [Install / run](#install--run)
+- [Languages](#languages)
 - [Build the APK](#build-the-apk)
 - [Demo mode](#demo-mode)
 - [Data sources & honesty rules](#data-sources--honesty-rules)
 - [Architecture](#architecture)
 - [Tests](#tests)
-- [Limitations of v0.1](#limitations-of-v01)
+- [Limitations of v0.1.1](#limitations-of-v011)
 - [Attribution & licensing](#attribution--licensing)
 - [Relationship to the reference project](#relationship-to-the-reference-project)
 
@@ -41,15 +47,17 @@ Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installabl
 | **Connection health** | Live/stale/offline/degraded chip, source timestamps, freshness label, and a diagnostics panel with batch counts, rejected records and the last error. |
 | **Tsunami** | Latest 津波予報 with grades, areas and heights (progressive disclosure). |
 | **Demo mode** | Nine deterministic scenarios, all visibly marked `SIMULATION`. |
+| **Languages** | Japanese (default) and English, switchable from the header, applied instantly to every panel, label, error and accessibility name, and persisted through Android `SharedPreferences`. |
 | **Android** | Single APK, no local server, no localhost, back gesture, lifecycle-aware polling, HTTPS-only native bridge. |
 
 ---
 
 ## Screenshots
 
-All screenshots are captured from the shipped build by
-`tools/verify-web.mjs`'s sibling capture script; demo shots are labelled
-`SIMULATION` because they are simulations.
+Every screenshot is captured from `dist/yurewatch.html` — the exact file the APK
+embeds — by `node tools/screenshots.mjs`, so a shot can never show a UI the
+release does not have. Demo shots are labelled `SIMULATION` because they are
+simulations.
 
 | EEW warning (demo) | EEW updated (demo) |
 | --- | --- |
@@ -59,9 +67,17 @@ All screenshots are captured from the shipped build by
 | --- | --- |
 | ![](docs/screenshots/desktop-history.png) | ![](docs/screenshots/desktop-eew-cancelled.png) |
 
-| Phone, live | Phone, EEW warning (demo) |
+| Phone, live (ja) | Phone, EEW warning (demo, ja) |
 | --- | --- |
-| <img src="docs/screenshots/mobile-live.png" width="320" alt="Phone layout, live mode" /> | <img src="docs/screenshots/mobile-eew-warning.png" width="320" alt="Phone layout, EEW warning demo" /> |
+| <img src="docs/screenshots/mobile-live.png" width="320" alt="Phone layout, live mode, Japanese" /> | <img src="docs/screenshots/mobile-eew-warning.png" width="320" alt="Phone layout, EEW warning demo, Japanese" /> |
+
+| English, live | English, EEW warning (demo) |
+| --- | --- |
+| ![](docs/screenshots/en-desktop-live.png) | ![](docs/screenshots/en-desktop-eew-warning.png) |
+
+| Phone, live (English) |
+| --- |
+| <img src="docs/screenshots/en-mobile-live.png" width="320" alt="Phone layout, live mode, English" /> |
 
 ---
 
@@ -69,27 +85,42 @@ All screenshots are captured from the shipped build by
 
 ### Android APK
 
-**Download the built APK (v0.1.0):**
-[yurewatch-0.1.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.0/yurewatch-0.1.0.apk)
-— SHA-256 `bac382699d7a3f9b7a324e023dd474054e64f2518ee5699cf857c7a488f4fa47`
-(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.0/SHA256SUMS)).
+**Download the built APK (v0.1.1):**
+[yurewatch-0.1.1.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/yurewatch-0.1.1.apk)
+— the SHA-256 of the published file is in
+[SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/SHA256SUMS)
+and is also listed in the release notes.
 Android 7.0 (API 24) or newer. You will need to allow installation from
 unknown sources, because this is not distributed through Google Play.
+
+Updating from v0.1.0: CI builds are signed with a *throwaway* key, so Android
+will refuse to install v0.1.1 over v0.1.0 with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
+Uninstall the old version first (`adb uninstall net.yurewatch.app`, or long-press
+the icon → Uninstall). Your language preference is stored per app install, so it
+is reset by a reinstall.
 
 To build it yourself instead:
 
 ```bash
-# Build (produces build/yurewatch-0.1.0.apk)
+# Build (produces build/yurewatch-0.1.1.apk)
 npm ci
 bash tools/build-apk.sh
 
 # Install on a connected device
-adb install -r build/yurewatch-0.1.0.apk
+adb install -r build/yurewatch-0.1.1.apk
 ```
 
 The app opens directly into the map. It does **not** start a local server, ask
 for a URL, or need a computer. On first launch it polls the public feed; if the
 network is unavailable it says so instead of showing invented data.
+
+**If you only ever see a loading bar and the YureWatch wordmark**, you opened
+`index.html` from the repository (the *source* entry point) instead of a built
+file. That page needs the bundler. Either install the APK above, or open
+`dist/yurewatch.html` (`npm run build` produces it) — a single self-contained
+file with no external references. The app watches its own startup and, after six
+seconds, replaces the splash with an explanation and a reload button rather than
+sitting on a logo forever.
 
 Releases: when a `v*` tag is pushed, `.github/workflows/android.yml` builds the
 APK and attaches it to the GitHub Release. CI builds are signed with a throwaway
@@ -107,6 +138,50 @@ npm run preview      # serve dist/ over HTTP
 `dist/yurewatch.html` has **zero external references** (no CDN, no fonts, no
 image URLs); the build fails if one appears. Open it from the filesystem or from
 any static host.
+
+---
+
+## Languages
+
+YureWatch ships two complete locales. **Japanese is the default**, regardless of
+the device language, and the choice is remembered.
+
+| | Japanese (default) | English |
+| --- | --- | --- |
+| Switch | `日本語 \| English` in the header | same control |
+| Default on a fresh install | yes | no |
+| Alert headline | `緊急地震速報（警報）` | `EEW (Warning)` |
+| Intensity scale | `5弱` / `5強` | `5-` / `5+` (JMA's "5 lower" / "5 upper" in long form) |
+| Timestamps | `2026/10/22 16:56:14` (JST) | `2026-10-22 16:56:14` (JST) |
+| Stored in | `SharedPreferences` (`yurewatch.locale`) on Android, `localStorage` on the web | same |
+
+How it works:
+
+- **One catalog per language** — `src/i18n/ja.ts` is the source of truth for the
+  key set; `src/i18n/en.ts` is typed as `Record<MessageKey, string>`, so a missing
+  or misspelled key is a **compile error**, not a silent fallback.
+- **One translation function** — every component calls `t('key', params)`. There
+  are no `if (locale === …)` branches in the UI, so the two languages cannot drift
+  apart functionally. A language switch is an ordinary re-render: `setLocale()`
+  bumps a version counter that every memoised panel includes in its cache key.
+- **Tests enforce parity** — same keys, same placeholders (`{n}`, `{time}`…), no
+  empty strings, and no untranslated English sentences left in the Japanese
+  catalog (`tests/i18n.test.ts`).
+- **The other language is always visible where it matters.** The EEW headline
+  shows the active language with the other language underneath, so one screen
+  reads correctly to a Japanese and an English speaker standing in front of it.
+- **Source data is not translated.** Epicentre and area names (`茨城県南部`,
+  `東京都２３区`) stay exactly as JMA issued them: translating a place name would
+  invent information the source did not provide.
+- **Official wording is preserved.** 予報 is never rendered as "Warning"; 取消 is
+  "Cancelled"; 津波注意報 is "tsunami advisory". Where the app relays a JMA
+  sentence, the translation keeps its meaning and its hedge ("in effect",
+  "checking", "no tsunami concern from this earthquake").
+- **Times are always `Asia/Tokyo`** in both languages, independent of the device
+  timezone and locale.
+
+Adding a third language means adding one catalog file plus a line in
+`src/i18n/index.ts`; see `docs/I18N.md`.
 
 ---
 
@@ -250,6 +325,7 @@ src/
   net/         transport.ts, liveFeed.ts                     ← HTTP bridge + polling/backoff/watchdog
   demo/        scenarios.ts, engine.ts                       ← deterministic simulation
   map/         geo.ts, mapData.ts, scene.ts, renderer.ts, view.ts, theme.ts
+  i18n/        index.ts (runtime + t()), ja.ts, en.ts, storage.ts  ← localisation
   ui/          app.ts, header.ts, alertPanel.ts, eventList.ts, details.ts,
                sections.ts, demoPanel.ts, audio.ts, dom.ts
   data/        japan-map.json (generated), prefectures.ts
@@ -269,6 +345,9 @@ Key decisions (full rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md))
   transform is animated per frame. No third-party map SDK, no API key, no tiles
   to fetch — which is also why the app works offline for everything except the
   feed.
+- **Localisation as data, not branching.** One catalog per language, one `t()`
+  call site pattern, and a locale version counter in every render cache key, so a
+  language switch is a plain re-render. Details in [`docs/I18N.md`](docs/I18N.md).
 - **Native HTTPS bridge on Android** instead of page `fetch`: a WebView loading
   from `file://` has an opaque origin, so cross-origin requests are blocked by
   CORS. The bridge also sets an honest `User-Agent` and keeps the request off the
@@ -279,10 +358,11 @@ Key decisions (full rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md))
 ## Tests
 
 ```bash
-npm test                  # 159 unit tests (vitest, jsdom)
+npm test                  # 184 unit tests (vitest, jsdom)
 npm run typecheck         # tsc --noEmit, strict
 npm run build             # tsc + vite + single-file inliner (+ external-ref check)
-node tools/verify-web.mjs # 18 browser integration checks (needs playwright)
+node tools/verify-web.mjs # 26 browser integration checks (needs playwright)
+node tools/screenshots.mjs # regenerates docs/screenshots/ from dist/
 bash tools/build-apk.sh   # produces a signed, verified APK
 ```
 
@@ -300,7 +380,8 @@ Coverage by area:
 | `tests/liveFeed.test.ts` | Polling cadence, rate-limit budget, HTTP/network/JSON failures, backoff, stale watchdog, recency gating. |
 | `tests/data.test.ts` | The 47-prefecture table and the map geometry cannot drift apart. |
 | `tests/ui.test.ts` | Panel rendering: warning vs forecast wording, offline wording, SIMULATION labels, provenance. |
-| `tools/verify-web.mjs` | Real Chromium: boot, painted canvas, **Android bridge contract**, demo labelling, lifecycle hooks, back gesture. |
+| `tests/i18n.test.ts` | Catalog parity (keys + placeholders), Japanese default even on an `en-US` device, persistence, instant switching, locale-aware JST formatting, intensity vocabulary, and a full UI re-render on switch. |
+| `tools/verify-web.mjs` | Real Chromium: boot, painted canvas, **Android bridge contract**, demo labelling, lifecycle hooks, back gesture, Japanese default, English switching, persistence across reload, accessibility-label translation, no horizontal overflow in English. |
 
 `tools/verify-web.mjs` fakes `YureWatchNative` with the same
 `request(id, url, timeoutMs)` → `__yurewatchNativeResolve(id, json)` flow as
@@ -311,7 +392,7 @@ remains a manual check.**
 
 ---
 
-## Limitations of v0.1
+## Limitations of v0.1.1
 
 - **Not a safety device.** No guarantee of delivery, ordering or timeliness;
   treat every estimate as provisional.
@@ -329,8 +410,9 @@ remains a manual check.**
   no emulator/device run was possible in this environment.
 - **CI builds are debug-signed.** Publish with your own keystore for real
   distribution.
-- **Japanese-language UI only.** The domain vocabulary (予報/警報, 震度, 津波) is
-  JMA-specific and deliberately not machine-translated.
+- **Two languages, no others.** Japanese and English are complete; the UI has no
+  third locale and no runtime machine translation. Epicentre and area names stay
+  in Japanese in both languages because that is how the source issues them.
 - **No background alerts.** The app polls only while in the foreground; there is
   no foreground service and no push notification. An EEW that arrives while the
   app is backgrounded will be seen on return if it is still within the freshness

@@ -46,11 +46,40 @@ One direction only: sources never touch the DOM, components never mutate state.
 | `map/scene` | State → screen-space draw instructions, culling, label collision | Call canvas APIs |
 | `map/renderer` | Canvas painting only | Know what a "warning" is |
 | `map/view` | Gestures, sizing, rAF loop | Own application state |
+| `i18n/*` | Message catalogs, `t()`, locale persistence | Contain layout or seismology |
 | `ui/*` | Small `{el, update(state)}` components | Fetch or parse |
 
 The split between `scene` (pure) and `renderer` (canvas) is what makes map
 behaviour testable: marker positions, colours, culling, selection order and label
 collisions are asserted in `tests/scene.test.ts` without a browser.
+
+## Localisation
+
+`src/i18n/` owns every user-visible string. Components call `t(key, params)` and
+never branch on a locale, so the two languages cannot diverge functionally; a
+switch increments a version counter that each memoising panel folds into its
+cache key, which makes the switch a single ordinary re-render of the whole app.
+Catalogs are typed against each other (`Record<MessageKey, string>`), so a
+missing translation is a compile error rather than a fallback at runtime.
+
+The locale code is persisted through `SharedPreferences` on Android
+(`NativePrefs.java`, exposed as `YureWatchPrefs`), because WebView `localStorage`
+is not dependable for the `file:///android_asset/` origin. `localStorage` is used
+on the web, and memory when neither exists.
+
+Full rationale, terminology table and extension guide: [`I18N.md`](I18N.md).
+
+## Startup and failure states
+
+The HTML shell paints a small progress line before the bundle executes (no white
+flash) and a watchdog replaces it after six seconds with an explanation and a
+reload button if the app never mounted. That state is what a reader sees when the
+*source* `index.html` is opened without the bundler — the failure is reported
+honestly instead of leaving a logo on screen forever.
+
+`MainActivity` has its own fallback view for a WebView load error, and the map
+draws a labelled fallback (`map.error` + "the list views remain usable") if the
+canvas cannot initialise. No failure path silently shows invented data.
 
 ## Decisions and their reasons
 

@@ -15,6 +15,7 @@ import {
 } from './geo';
 import type { MapGeometry } from './mapData';
 import type { MapTheme } from './theme';
+import { t } from '../i18n';
 
 /**
  * Scene construction: converts application state into screen-space drawing
@@ -259,7 +260,7 @@ export function buildScene(input: SceneInput): MapScene {
         y: p.y,
         pulsing: alert.state === 'warning' || alert.state === 'updated' || alert.state === 'forecast',
         label: alert.epicenter.name ?? '震源不明',
-        sublabel: style ? `予測最大震度 ${style.label}` : null,
+        sublabel: style ? t('map.eewPredicted', { scale: style.label }) : null,
       };
     }
   }
@@ -304,7 +305,7 @@ export function buildScene(input: SceneInput): MapScene {
     eew,
     graticule: { vertical, horizontal },
     scaleBar,
-    attribution: '地図データ: Natural Earth (パブリックドメイン)',
+    attribution: t('map.attribution'),
     empty: markers.length === 0 && !eew,
     japanBounds: { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y },
   };

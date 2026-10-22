@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#070c12" />
     <meta
       name="description"
-      content="日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図上で確認できる情報閲覧アプリ。気象庁の情報を公開API経由で受信します。地震の予測や独自検出は行いません。"
+      content="日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図上で確認できる情報閲覧アプリ。地震の予測や独自検出は行いません。"
     />
     <meta name="color-scheme" content="dark" />
     <title>YureWatch — 日本 地震・緊急地震速報ビューア</title>
@@ -29,39 +29,93 @@
       #boot {
         position: fixed;
         inset: 0;
-        display: grid;
-        place-items: center;
-        gap: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+        padding: 24px;
+        box-sizing: border-box;
         font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
-        font-size: 12px;
         color: #778da3;
-        letter-spacing: 0.08em;
       }
-      #boot .dot {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #ff3b4e, #ff8a3d 55%, #ffd23f);
-        animation: pulse 1.4s ease-in-out infinite;
+      #boot .boot__brand {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        color: #e9eff7;
       }
-      @keyframes pulse {
-        0%,
+      #boot .boot__line {
+        height: 2px;
+        width: 100%;
+        max-width: 220px;
+        background: #16212d;
+        overflow: hidden;
+      }
+      #boot .boot__line::after {
+        content: "";
+        display: block;
+        height: 100%;
+        width: 40%;
+        background: #ffd23f;
+        animation: slide 1.1s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(-100%);
+        }
         100% {
-          opacity: 0.55;
-          transform: scale(0.94);
+          transform: translateX(350%);
         }
-        50% {
-          opacity: 1;
-          transform: scale(1);
-        }
+      }
+      #boot .boot__status {
+        font-size: 12px;
+        letter-spacing: 0.04em;
+      }
+      /* Shown only when the watchdog decides the bundle never executed. */
+      #boot[data-stalled="true"] .boot__line {
+        display: none;
+      }
+      #boot .boot__detail {
+        display: none;
+        max-width: 46ch;
+        font-size: 12px;
+        line-height: 1.7;
+        color: #a9b8c9;
+      }
+      #boot[data-stalled="true"] .boot__detail {
+        display: block;
+      }
+      #boot[data-stalled="true"] .boot__status {
+        color: #ffd23f;
+        font-weight: 600;
+      }
+      #boot button {
+        display: none;
+        align-self: flex-start;
+        margin-top: 4px;
+        padding: 10px 16px;
+        font: inherit;
+        font-size: 13px;
+        color: #e9eff7;
+        background: #16212d;
+        border: 1px solid #2a3644;
+        border-radius: 6px;
+      }
+      #boot[data-stalled="true"] button {
+        display: block;
       }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div id="boot" aria-hidden="true">
-      <div class="dot"></div>
-      <div>YureWatch</div>
+    <div id="boot">
+      <div class="boot__brand">YureWatch</div>
+      <div class="boot__line" aria-hidden="true"></div>
+      <div class="boot__status" data-boot-status>読み込み中…</div>
+      <p class="boot__detail" data-boot-detail>
+        画面の読み込みに失敗した可能性があります。ビルド済みの単一ファイル版（dist/yurewatch.html）を開くか、アプリを再起動してください。
+      </p>
+      <button type="button" onclick="location.reload()">再読み込み</button>
     </div>
     <noscript>
       <p style="padding: 24px; font-family: sans-serif">
@@ -71,5 +125,26 @@
     <!-- Loaded at the end of <body>: the single-file Android build inlines this
          as a classic script, so it must run after the document exists. -->
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      /*
+       * Boot watchdog.
+       *
+       * The splash used to sit there forever if the module bundle never ran —
+       * which is exactly what happens when this file is opened on its own (no
+       * bundler, no dev server, `file://`, or a sandboxed preview iframe).
+       * Rather than show a logo for eternity, say what happened and offer a
+       * reload. `main.ts` removes #boot as soon as it mounts the app.
+       */
+      (function () {
+        var boot = document.getElementById('boot');
+        if (!boot) return;
+        setTimeout(function () {
+          if (!document.getElementById('boot')) return; // app mounted
+          var status = boot.querySelector('[data-boot-status]');
+          if (status) status.textContent = '起動に時間がかかっています';
+          boot.setAttribute('data-stalled', 'true');
+        }, 6000);
+      })();
+    </script>
   </body>
 </html>

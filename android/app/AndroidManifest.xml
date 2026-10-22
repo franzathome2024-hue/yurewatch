@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="net.yurewatch.app"
-    android:versionCode="1"
-    android:versionName="0.1.0">
+    android:versionCode="2"
+    android:versionName="0.1.1">
 
     <!-- The app talks to the public P2P地震情報 JSON API over HTTPS. -->
     <uses-permission android:name="android.permission.INTERNET" />

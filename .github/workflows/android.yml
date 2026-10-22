@@ -91,7 +91,10 @@ jobs:
             build/yurewatch-*.apk
             build/SHA256SUMS
           body: |
-            YureWatch ${{ github.ref_name }} — Japan earthquake / EEW viewer.
+            YureWatch ${{ github.ref_name }} — Japan earthquake / EEW viewer for Android.
+
+            Bilingual interface: **Japanese (default)** and English, switched from the
+            header and remembered across restarts.
 
             **This APK is signed with an ephemeral CI key** (generated at build
             time, not stored). It installs and runs, but it cannot be updated

@@ -3,10 +3,11 @@
 Three layers, all runnable locally and in CI.
 
 ```bash
-npm test                    # 159 unit/integration tests (vitest + jsdom)
+npm test                    # 184 unit/integration tests (vitest + jsdom)
 npm run typecheck           # strict tsc, no emit
 npm run build               # tsc + vite + single-file inline + external-ref check
-node tools/verify-web.mjs   # 18 browser checks in Chromium
+node tools/verify-web.mjs   # 26 browser checks in Chromium
+node tools/screenshots.mjs  # regenerates docs/screenshots/ from dist/
 bash tools/build-apk.sh     # signed, verified APK
 ```
 
@@ -24,7 +25,8 @@ bash tools/build-apk.sh     # signed, verified APK
 | Live feed | `tests/liveFeed.test.ts` | cadence budget, HTTP/network/JSON failures, exponential backoff, stale watchdog, recency gating. |
 | Data integrity | `tests/data.test.ts` | the 47-prefecture table and map geometry cannot drift. |
 | UI rendering | `tests/ui.test.ts` | 警報 vs 予報 wording, offline wording, SIMULATION badges, provenance, empty states. |
-| Browser integration | `tools/verify-web.mjs` | boot, painted canvas, Android bridge contract, demo labelling, lifecycle hooks, back-gesture sequence. |
+| Localisation | `tests/i18n.test.ts` | catalog key + placeholder parity, no untranslated English left in the Japanese catalog, Japanese default even on an `en-US` device, persistence, instant UI switch, JST formatting, intensity vocabulary, demo-scenario copy. |
+| Browser integration | `tools/verify-web.mjs` | boot, painted canvas, Android bridge contract, demo labelling, lifecycle hooks, back-gesture sequence, Japanese default in an `en-US` browser, English switch, persistence across reload, translated accessibility names, no horizontal overflow at phone width. |
 
 ## Bugs these tests caught during development
 
@@ -44,6 +46,21 @@ Recorded because they justify the coverage, not to pad the list:
    presented as an arrival time.
 7. **Map did not refit** after the alert panel changed height (Japan off-centre).
 8. **Recenter glyph rendered as tofu** on Android system fonts (now inline SVG).
+
+## Localisation coverage
+
+`tests/i18n.test.ts` fails the build when:
+
+- a key exists in one catalog but not the other,
+- the same key uses different `{placeholders}` in each language,
+- a message is empty,
+- a Japanese message still contains an untranslated English sentence (a small
+  allowlist covers proper nouns such as `YureWatch`, `NIED`, `JMA`, `PLUM`).
+
+`tools/verify-web.mjs` then checks the behaviour in a real browser created with
+`locale: 'en-US'`: the first paint is Japanese, the switch rewrites the header,
+alert panel, tab bar and `aria-label`s immediately, the choice survives a reload,
+and the English layout does not overflow a 412 px viewport.
 
 ## What is *not* tested (honest gaps)
 

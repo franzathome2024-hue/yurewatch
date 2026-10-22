@@ -1,0 +1,284 @@
+/**
+ * Japanese message catalog — the source of truth for message keys.
+ *
+ * Terminology follows the Japan Meteorological Agency's own vocabulary
+ * (緊急地震速報（予報）/（警報）, 震度, 震央, 津波注意報 …). Official message wording
+ * is not paraphrased: where the app shows something the source said, the
+ * Japanese text mirrors the source. English lives in `en.ts` and must never
+ * change the meaning of an alert.
+ *
+ * Placeholders use `{name}` and are substituted by `t()`.
+ */
+export const ja = {
+  /* ---------------- shell ---------------- */
+  'app.title': 'YureWatch — 日本 地震・緊急地震速報ビューア',
+  'app.brandSub': '日本 地震・緊急地震速報ビューア',
+  'app.description':
+    '日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図上で確認できる情報閲覧アプリ。地震の予測や独自検出は行いません。',
+  'app.disclaimer':
+    '情報閲覧アプリです。地震の予測・独自検出は行いません。必ず気象庁の発表と自治体の指示を確認してください。',
+  'app.audio.on': '音声: ON',
+  'app.audio.off': '音声: OFF',
+  'app.audio.aria': '警報音の切り替え',
+
+  'tab.feed': '地震情報',
+  'tab.detail': '詳細',
+  'tab.info': '情報',
+  'tab.aria': '表示切り替え',
+
+  'lang.label': '表示言語',
+  'lang.ja': '日本語',
+  'lang.en': 'English',
+  'lang.aria': '{name}に切り替え',
+
+  /* ---------------- header ---------------- */
+  'mode.live': 'LIVE',
+  'mode.demo': 'DEMO',
+  'mode.aria.live': 'ライブモード（公開データ）',
+  'mode.aria.demo': 'デモモード（模擬データ）',
+  'mode.connPrefix.demo': 'デモ・',
+
+  'conn.live': 'ライブ接続',
+  'conn.degraded': '接続不安定',
+  'conn.stale': '更新停止',
+  'conn.offline': 'オフライン',
+  'conn.connecting': '接続中',
+  'conn.demo': 'デモモード',
+  'conn.none': '未接続',
+  'conn.aria': '接続状態: {state}',
+
+  'fresh.fresh': '最新',
+  'fresh.aging': 'やや遅延',
+  'fresh.stale': '情報が古い',
+  'fresh.nodata': 'データなし',
+  'fresh.unknown': '時刻不明',
+
+  /* ---------------- shared values ---------------- */
+  'meta.unknown': '不明',
+  'meta.emDash': '—',
+  'meta.jst': 'JST',
+  'meta.now': 'たった今',
+  'age.seconds': '{n}秒前',
+  'age.minutes': '{n}分前',
+  'age.hours': '{n}時間前',
+  'age.days': '{n}日前',
+  'age.unknownTime': '時刻不明',
+  'age.received': '{age}受信',
+
+  /* ---------------- EEW panel ---------------- */
+  'alert.kicker': '緊急地震速報',
+  'alert.badge.waiting': '待機中',
+  'alert.badge.unknown': '状態不明',
+  'alert.idle.onlineMain': '現在、緊急地震速報は発表されていません（受信範囲内）。',
+  'alert.idle.onlineNote':
+    '情報は数十秒おきに更新されます。速報が間に合わない場合があるため、この画面だけに頼らないでください。',
+  'alert.idle.offlineMain': '接続が切れているため、速報の有無を確認できません。',
+  'alert.idle.offlineNote':
+    'ネットワークが復旧すると自動的に再取得します。この表示は「発表がない」ことの証明ではありません。',
+  'alert.idle.lastReceived': '最終受信: {time}（{age}）',
+
+  'alert.state.forecast': '緊急地震速報（予報）',
+  'alert.state.warning': '緊急地震速報（警報）',
+  'alert.state.updated': '緊急地震速報（続報）',
+  'alert.state.cancelled': '緊急地震速報（取消）',
+  'alert.state.unavailable': '緊急地震速報（状態不明）',
+  'alert.state.idle': '緊急地震速報なし',
+
+  'alert.serial': '第{n}報',
+  'alert.badge.test': '訓練/試験',
+  'alert.cancelledTitle': '発表された緊急地震速報は取消されました',
+  'alert.cancelledNote': '取消は「揺れが無かった」ことを意味しません。実際の揺れの情報を確認してください。',
+  'alert.scaleLabel': '予測最大震度',
+  'alert.fact.epicenter': '震央',
+  'alert.fact.magnitude': '規模',
+  'alert.fact.depth': '深さ',
+  'alert.fact.intensity': '予測震度',
+  'alert.value.noInfo': '情報なし',
+  'alert.epicenterUnknown': '震央不明',
+  'alert.time.origin': '発生',
+  'alert.time.issued': '発表',
+  'alert.provisional': '震源は「仮定震源要素」です。後続の情報で大きく変わる可能性があります。',
+  'alert.arrival.soonest': '最短の主要動到達予測',
+  'alert.arrival.past': '主要動到達予測（経過）',
+  'alert.arrival.source': '{area}（気象庁の予測）',
+  'alert.arrival.disclaimer': '現在地の到達時刻ではありません',
+  'alert.arrival.noneTitle': '主要動到達予測',
+  'alert.arrival.noneBody': 'この電文には到達予測時刻が含まれていません',
+  'alert.areas.title': '警報対象区域（{n}）',
+  'alert.areas.order': '予測震度の高い順',
+  'alert.areas.more': '他 {n} 区域',
+  'alert.areas.missing': 'この電文には警報対象区域が含まれていません。警報として扱わないでください。',
+  'alert.sim': 'SIMULATION: この速報はアプリ内のデモデータです。実際の地震情報ではありません。',
+  'alert.disclaimer':
+    '予測には誤差があり、続報で震央・震度・対象区域が変わることがあります。必ず気象庁の発表と自治体の指示を確認してください。',
+
+  'kind.mainNotArrived': '主要動 未到達',
+  'kind.mainArrived': '主要動 到達',
+  'kind.plum': 'PLUM法',
+
+  /* ---------------- feed ---------------- */
+  'feed.title': '地震情報',
+  'feed.count': '{n}件',
+  'feed.empty.offline': '地震情報を取得できません（オフライン）',
+  'feed.empty.online': '地震情報がまだありません',
+  'feed.empty.note': '受信すると自動的にこの一覧へ追加されます。',
+  'feed.badge.preliminary': '暫定',
+  'feed.badge.sim': 'SIM',
+  'feed.meta.depth': '深さ{depth}',
+  'feed.name.unknown': '震央不明',
+  'feed.aria.select': '{name} {time} の詳細を表示',
+
+  /* ---------------- details ---------------- */
+  'details.title': '地震の詳細',
+  'details.close': '詳細を閉じる',
+  'details.empty': '地図または一覧から地震を選択してください。',
+  'details.emptyHint': '震央・規模・各地の震度を表示します。',
+  'details.scaleLabel': '最大震度',
+  'details.badge.preliminary': '暫定情報',
+  'details.badge.detailed': '詳細情報',
+  'details.approx': '{time} ごろ',
+  'details.kv.magnitude': 'マグニチュード',
+  'details.kv.depth': '深さ',
+  'details.kv.epicenter': '震央',
+  'details.kv.issued': '発表',
+  'details.kv.received': '受信',
+  'details.provisional': '震源は仮定震源要素です。確定値ではありません。',
+  'details.points.title': '各地の震度',
+  'details.points.count': '{n}地点',
+  'details.points.more': '他 {n} 地点（上位のみ表示）',
+  'details.points.pending': '各地の震度はまだ発表されていません。',
+  'details.source': '情報源: {provider}',
+  'details.sourceRelayed': '（気象庁の情報を中継）',
+  'details.sourceMerged': '・電文 {n}件を統合',
+  'details.notApplicable': '—',
+
+  'infoType.scalePrompt': '震度速報',
+  'infoType.destination': '震源に関する情報',
+  'infoType.scaleAndDestination': '震度・震源に関する情報',
+  'infoType.detailScale': '各地の震度に関する情報',
+  'infoType.foreign': '遠地地震に関する情報',
+  'infoType.other': 'その他の情報',
+  'infoType.default': '地震情報',
+  'details.depthShallow': 'ごく浅い',
+
+  /* ---------------- tsunami ---------------- */
+  'tsunami.none': 'この地震による津波の心配はありません（気象庁）',
+  'tsunami.nonEffective': '若干の海面変動が予想されるが、被害の心配なし',
+  'tsunami.watch': '津波注意報が発表されています',
+  'tsunami.warning': '津波警報が発表されています',
+  'tsunami.majorWarning': '大津波警報が発表されています',
+  'tsunami.checking': '津波の有無を調査中',
+  'tsunami.unknown': '津波情報は未受信です',
+  'tsunami.sectionTitle': '津波情報',
+  'tsunami.sectionSubtitle': '警報・注意報・予報',
+  'tsunami.notReceived': '津波予報は受信していません。地震情報の「津波の心配」表示も併せて確認してください。',
+  'tsunami.cancelled': '津波予報は解除されました。',
+  'tsunami.noAreas': '津波予報の区域情報がありません。',
+  'tsunami.issued': '発表: {time}（{provider}）',
+  'tsunami.areas': '{n}区域',
+  'tsunami.receivedNone': '受信なし',
+  'tsunami.present': '発表あり・{sub}',
+
+  'grade.majorWarning': '大津波警報',
+  'grade.warning': '津波警報',
+  'grade.watch': '津波注意報',
+  'grade.nonEffective': '若干の海面変動',
+  'grade.default': '津波予報',
+
+  /* ---------------- NIED ---------------- */
+  'nied.sectionTitle': 'NIED リアルタイム震度',
+  'nied.subtitle': '未接続（v0.1 の制限）',
+  'nied.body1': 'v0.1 では未実装です。推測や代替データで埋めることはしていません。',
+  'nied.body2':
+    '防災科学技術研究所のリアルタイム震度（長周期地震動モニタ）は、公式に提供されている機械可読 API が確認できていないため、本バージョンでは接続していません。利用条件を確認のうえ、データ提供元と合意できた場合に実装します。',
+  'nied.body3':
+    '現状の代替: 気象庁の「各地の震度」（地震情報）を表示しています。これは観測値であり、NIED の計測震度とは算出方法が異なります。',
+
+  /* ---------------- diagnostics ---------------- */
+  'diag.sectionTitle': '接続とデータの鮮度',
+  'diag.subtitle': 'ソース・タイムスタンプ・エラー',
+  'diag.mode': 'モード',
+  'diag.mode.live': 'LIVE（公開データ）',
+  'diag.mode.demo': 'DEMO（模擬データ）',
+  'diag.conn': '接続状態',
+  'diag.lastOk': '最終成功',
+  'diag.freshness': '鮮度',
+  'diag.batches': '受信バッチ',
+  'diag.rejected': '破棄レコード',
+  'diag.dupes': '重複/順序外の速報',
+  'diag.lastError': '最終エラー',
+  'diag.provider': 'データ提供',
+  'diag.provider.live': 'P2P地震情報 JSON API v2（気象庁情報の中継）',
+  'diag.provider.demo': 'YureWatch DEMO ENGINE',
+  'diag.polling':
+    'ポーリング間隔: 平常 20 秒 / 速報中 6 秒。API の公開レート制限（60 req/分）に対し、1回の更新で3リクエストを使用します。',
+  'diag.subtitleValue': '{conn}・{fresh}',
+
+  /* ---------------- about ---------------- */
+  'about.sectionTitle': 'このアプリについて / 注意事項',
+  'about.subtitle': '情報の限界と免責',
+  'about.p1':
+    'YureWatch は情報閲覧アプリです。地震を予測・独自検出するものではなく、警報が必ず揺れの前に届くことを保証しません。',
+  'about.li1': '緊急地震速報の予測は誤差を含み、続報で内容が変わります（誤報・空振りも含む）。',
+  'about.li2': '「予報」と「警報」は別物です。本アプリは両者を表示上で区別します。',
+  'about.li3': '深さ150km以深など、予想最大震度が発表されないケースがあります。',
+  'about.li4': '通信の遅延・欠落により、情報が届かない場合があります。',
+  'about.li5': '最終的な判断は気象庁の発表と自治体の指示に従ってください。',
+  'about.attribution': '地図: Natural Earth（パブリックドメイン）。データ: P2P地震情報 JSON API v2（気象庁の情報を中継）。',
+
+  /* ---------------- demo ---------------- */
+  'demo.title': 'デモ / テスト',
+  'demo.subtitle': '模擬データを再生（SIMULATION）',
+  'demo.status': '{label} — {state}',
+  'demo.running': '再生中',
+  'demo.finished': '終了',
+  'demo.note':
+    'ここから実行するデータはすべてアプリ内で生成した模擬データです。実際の地震情報ではありません。',
+  'demo.stop': 'デモを停止してライブへ',
+  'demo.export': '状態をJSONで書き出す',
+  'demo.simBadge': 'SIMULATION',
+
+  'scenario.normal.label': '平常時',
+  'scenario.normal.summary': 'EEW なし。直近の地震情報のみが流れ、地図に履歴マーカーが並びます。',
+  'scenario.forecast.label': 'EEW 予報',
+  'scenario.forecast.summary': '緊急地震速報（予報）第1報。対象区域がまだ確定していない段階を再現します。',
+  'scenario.warning.label': 'EEW 警報',
+  'scenario.warning.summary': '緊急地震速報（警報）第1報。予測最大震度と対象予報区を表示します。',
+  'scenario.updated.label': 'EEW 続報',
+  'scenario.updated.summary': '第1報 → 第2報 → 第3報。予測震度とマグニチュードが更新される流れを再現します。',
+  'scenario.cancelled.label': 'EEW 取消',
+  'scenario.cancelled.summary': '警報発表後に取消電文を受信する流れ。取消は「揺れが無い」ことを意味しません。',
+  'scenario.historical.label': '履歴（複数地震）',
+  'scenario.historical.summary': '震度速報 → 詳細情報への更新を含む履歴。速報段階は「暫定」と明示されます。',
+  'scenario.disconnect.label': '通信断 → 復旧',
+  'scenario.disconnect.summary': '接続断を検知し「オフライン」を明示、復旧後にデータを再取得します。',
+  'scenario.stale.label': '情報の停滞',
+  'scenario.stale.summary': 'データが更新されない状態。アプリは「情報が古い」と明示し、ライブと誤認させません。',
+  'scenario.unavailable.label': 'データ欠損',
+  'scenario.unavailable.summary':
+    '壊れたレコード・空応答を混在させ、不正データを捨てて表示を維持することを確認します。',
+
+  /* ---------------- map ---------------- */
+  'map.aria': '日本地図。ドラッグで移動、ピンチまたはスクロールで拡大縮小。',
+  'map.zoomIn': '拡大',
+  'map.zoomOut': '縮小',
+  'map.recenter': '日本全体を表示',
+  'map.eewPredicted': '予測最大震度 {scale}',
+  'map.attribution': '地図データ: Natural Earth（パブリックドメイン）',
+  'map.legendEew': 'EEW震央（予測）',
+  'map.scaleBar': '{km} km',
+  'map.canvasUnsupported': 'この端末では地図を描画できません（Canvas 2D 非対応）',
+  'map.error': '地図の初期化に失敗しました: {message}',
+  'map.errorSuffix': '一覧表示は引き続き利用できます。',
+
+  /* ---------------- simulation banner / boot ---------------- */
+  'sim.banner': '表示中のデータはすべて模擬データです。実際の地震情報ではありません。',
+  'boot.loading': '読み込み中…',
+  'boot.slowTitle': '起動に時間がかかっています',
+  'boot.slowBody':
+    '画面の読み込みに失敗した可能性があります。ビルド済みの単一ファイル版（dist/yurewatch.html）を開くか、アプリを再起動してください。',
+  'boot.fatal': '起動できませんでした: {message} アプリを再起動してください。',
+  'boot.noscript': 'YureWatch は JavaScript が必要です。ブラウザの設定で有効にしてください。',
+} as const;
+
+export type MessageKey = keyof typeof ja;

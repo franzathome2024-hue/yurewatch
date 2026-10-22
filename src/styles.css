@@ -145,6 +145,53 @@ button {
   text-overflow: ellipsis;
 }
 
+/* Language switch: a compact segmented control. Quiet by design — it is a
+   preference, not an alert instrument — but always visible and large enough to
+   hit with a thumb. */
+.langSwitch {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.langSwitch__btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 0 9px;
+  min-height: 36px;
+  min-width: 46px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.langSwitch__btn + .langSwitch__btn {
+  border-left: 1px solid var(--line);
+}
+
+.langSwitch__btn.is-active {
+  background: #1b2836;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.langSwitch__btn:active {
+  background: #22303f;
+}
+
+.langSwitch__btn:focus-visible {
+  outline: 2px solid var(--warn);
+  outline-offset: -2px;
+}
+
 .header__status {
   margin-left: auto;
   display: flex;
@@ -543,7 +590,7 @@ button {
 
 .alert__area {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
   font-size: 12px;
   min-width: 0;
@@ -558,23 +605,34 @@ button {
 }
 
 .alert__areaName {
+  /* The flex child that gives way first: names run wide in both languages and
+     the intensity + arrival state must never be pushed off the row. */
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .alert__areaScale {
+  flex: none;
   font-weight: 700;
   font-size: 11px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .alert__areaKind {
+  flex: none;
   font-size: 9.5px;
   color: var(--text-faint);
   margin-left: auto;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42%;
+  text-align: right;
 }
 
 .alert__more {
@@ -775,14 +833,17 @@ button {
   position: absolute;
   left: 10px;
   top: 10px;
+  /* Leaves the legend its corner on wide layouts; the banner wraps instead of
+     sliding underneath it. */
+  max-width: calc(100% - 240px);
   z-index: 3;
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 20px);
   padding: 6px 10px;
   border-radius: var(--radius);
   background: rgba(38, 16, 60, 0.92);
+  line-height: 1.45;
   border: 1px solid rgba(176, 107, 255, 0.55);
   font-size: 11px;
   color: #e6d3ff;
@@ -793,6 +854,8 @@ button {
   position: absolute;
   right: 10px;
   top: 10px;
+  /* Compact so it never reaches the simulation banner on the left. */
+  max-width: 200px;
   z-index: 3;
   background: rgba(10, 16, 24, 0.82);
   border: 1px solid var(--line);
@@ -802,11 +865,12 @@ button {
 }
 
 .legend__items {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   flex-wrap: wrap;
-  max-width: 268px;
+  max-width: 180px;
   font-size: 9.5px;
   color: var(--text-dim);
 }
@@ -907,6 +971,19 @@ button {
   overflow-y: auto;
   min-height: 0;
   flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* The feed is a scrolling list: without an explicit reset the browser paints
+   list markers in the gutter and the rows drift out of the panel. */
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
 }
@@ -1725,5 +1802,90 @@ button {
   .panel,
   .alert {
     border: 1px solid CanvasText;
+  }
+}
+
+
+/* ---------------------------------------------------------------- narrow -- */
+/*
+ * Phones: a two-row header instead of a squeezed single row.
+ *   row 1  brand ............ language switch
+ *   row 2  mode · connection · JST clock · freshness
+ * Everything stays visible (a monitoring app may not hide its connection state
+ * behind a tap) and nothing is truncated, including in English.
+ */
+@media (max-width: 560px) {
+  .header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand lang"
+      "status status";
+    align-items: center;
+    gap: 6px 10px;
+    padding: 7px 10px;
+    min-height: 0;
+  }
+
+  .brand {
+    grid-area: brand;
+  }
+
+  .langSwitch {
+    grid-area: lang;
+  }
+
+  .header__status {
+    grid-area: status;
+    margin-left: 0;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .header__clock {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* Shown again: the two-row header has room, and freshness is part of the
+     honest status report rather than decoration. */
+  .header__freshness {
+    display: inline-flex;
+    font-size: 10px;
+  }
+
+  .langSwitch__btn {
+    min-height: 34px;
+    min-width: 42px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 430px) {
+  .brand__sub {
+    display: none;
+  }
+
+  .brand__name {
+    font-size: 14px;
+  }
+
+  .chip {
+    font-size: 10.5px;
+    padding: 3px 7px;
+  }
+}
+
+
+/* The legend wraps on narrow maps rather than forcing a horizontal scroll. */
+@media (max-width: 700px) {
+  .simBanner {
+    max-width: calc(100% - 20px);
+    font-size: 10.5px;
+  }
+
+  .legend {
+    display: none;
   }
 }

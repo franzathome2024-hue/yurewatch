@@ -178,6 +178,66 @@ async function main() {
     backSequence.map(String).join(' → '),
   );
 
+  /* ---- localisation -------------------------------------------------- */
+  // A fresh context has empty storage: the app must start in Japanese even
+  // though this browser reports en-US.
+  const langCtx = await browser.newContext({ locale: 'en-US', viewport: { width: 412, height: 915 } });
+  const langPage = await langCtx.newPage();
+  await langPage.goto(base, { waitUntil: 'load' });
+  await langPage.waitForSelector('.app', { timeout: 15_000 });
+
+  const initialLang = await langPage.evaluate(() => ({
+    lang: document.documentElement.lang,
+    active: document.querySelector('.langSwitch__btn.is-active')?.textContent,
+    kicker: document.querySelector('.alert__kicker')?.textContent ?? '',
+    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+  }));
+  check('fresh install starts in Japanese', initialLang.lang === 'ja' && initialLang.active === '日本語', JSON.stringify(initialLang));
+  check('device language is ignored', initialLang.kicker.includes('緊急地震速報'), initialLang.kicker);
+
+  await langPage.click('.langSwitch__btn[data-locale="en"]');
+  await langPage.waitForTimeout(400);
+  const afterSwitch = await langPage.evaluate(() => ({
+    lang: document.documentElement.lang,
+    active: document.querySelector('.langSwitch__btn.is-active')?.textContent,
+    kicker: document.querySelector('.alert__kicker')?.textContent ?? '',
+    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+    stored: localStorage.getItem('yurewatch.locale'),
+    title: document.title,
+    mapLabel: document.querySelector('.map__canvas')?.getAttribute('aria-label') ?? '',
+  }));
+  check('switching to English updates the whole UI immediately', afterSwitch.lang === 'en' && afterSwitch.tab === 'Quakes' && afterSwitch.kicker.includes('Earthquake Early Warning'), JSON.stringify(afterSwitch));
+  check('switching to English localizes accessibility labels', afterSwitch.mapLabel.startsWith('Map of Japan'), afterSwitch.mapLabel);
+  check('language choice is persisted', afterSwitch.stored === 'en', String(afterSwitch.stored));
+
+  // Reload: the choice must survive a restart.
+  await langPage.reload({ waitUntil: 'load' });
+  await langPage.waitForSelector('.app', { timeout: 15_000 });
+  const afterReload = await langPage.evaluate(() => ({
+    lang: document.documentElement.lang,
+    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+  }));
+  check('language choice survives a restart', afterReload.lang === 'en' && afterReload.tab === 'Quakes', JSON.stringify(afterReload));
+
+  // And back to Japanese.
+  await langPage.click('.langSwitch__btn[data-locale="ja"]');
+  await langPage.waitForTimeout(400);
+  const backToJa = await langPage.evaluate(() => ({
+    lang: document.documentElement.lang,
+    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+  }));
+  check('switching back to Japanese works', backToJa.lang === 'ja' && backToJa.tab === '地震情報', JSON.stringify(backToJa));
+
+  // No horizontal overflow at phone width in either language.
+  await langPage.click('.langSwitch__btn[data-locale="en"]');
+  await langPage.waitForTimeout(300);
+  const overflow = await langPage.evaluate(() => ({
+    scrollW: document.documentElement.scrollWidth,
+    clientW: document.documentElement.clientWidth,
+  }));
+  check('English layout does not overflow horizontally on a phone', overflow.scrollW <= overflow.clientW + 1, JSON.stringify(overflow));
+
+  await langCtx.close();
   await browser.close();
   server?.close();
 

@@ -27,6 +27,21 @@ export interface DemoStep {
   error?: string;
 }
 
+import type { MessageKey } from '../i18n';
+
+/**
+ * Scenario copy lives in the message catalogs (`scenario.<id>.label`), so a
+ * scenario is described in the active language without duplicating prose here.
+ * The ids are a closed set, so this single cast is the only place that has to
+ * widen a template string into a message key.
+ */
+export function scenarioMessageKeys(id: string): { label: MessageKey; summary: MessageKey } {
+  return {
+    label: `scenario.${id}.label` as MessageKey,
+    summary: `scenario.${id}.summary` as MessageKey,
+  };
+}
+
 export interface DemoScenario {
   id: string;
   label: string;

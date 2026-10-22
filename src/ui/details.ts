@@ -1,6 +1,7 @@
 import { hasIntensity, scaleStyle } from '../core/intensity';
 import { coordinates, formatDepth, formatMagnitude, infoTypeLabel, tsunamiLabel } from '../core/format';
 import { formatAge, formatJst } from '../core/time';
+import { getLocaleVersion, t } from '../i18n';
 import { selectEvent, type AppState } from '../state/store';
 import { badge, clear, el } from './dom';
 
@@ -10,8 +11,8 @@ import { badge, clear, el } from './dom';
  */
 export function createDetails(opts: { onClose: () => void }): { el: HTMLElement; update: (s: AppState) => void } {
   const body = el('div', { class: 'details__body' });
-  const title = el('h2', { class: 'panel__title', text: '地震の詳細' });
-  const close = el('button', { class: 'iconButton', type: 'button', 'aria-label': '詳細を閉じる', text: '×' });
+  const title = el('h2', { class: 'panel__title', text: t('details.title') });
+  const close = el('button', { class: 'iconButton', type: 'button', text: '×' });
   close.addEventListener('click', () => opts.onClose());
 
   const root = el('section', { class: 'panel panel--details' },
@@ -29,16 +30,21 @@ export function createDetails(opts: { onClose: () => void }): { el: HTMLElement;
     el: root,
     update(state) {
       const ev = selectEvent(state);
-      const sig = ev ? `${ev.id}:${ev.revision}:${ev.maxIntensity}:${ev.points.length}` : 'none';
+      const sig = ev
+        ? `${ev.id}:${ev.revision}:${ev.maxIntensity}:${ev.points.length}#${getLocaleVersion()}`
+        : `none#${getLocaleVersion()}`;
       if (sig === signature) return;
       signature = sig;
+
+      title.textContent = t('details.title');
+      close.setAttribute('aria-label', t('details.close'));
       clear(body);
 
       if (!ev) {
         body.appendChild(
           el('div', { class: 'details__empty' },
-            el('p', { text: '地図または一覧から地震を選択してください。' }),
-            el('p', { class: 'details__hint', text: '震源・規模・各地の震度を表示します。' }),
+            el('p', { text: t('details.empty') }),
+            el('p', { class: 'details__hint', text: t('details.emptyHint') }),
           ),
         );
         return;
@@ -54,28 +60,33 @@ export function createDetails(opts: { onClose: () => void }): { el: HTMLElement;
             class: 'details__scale',
             style: `background:${hasIntensity(ev.maxIntensity) ? style.fill : '#2a3644'};color:${hasIntensity(ev.maxIntensity) ? style.text : '#a9b8c9'}`,
           },
-            el('span', { class: 'details__scaleLabel', text: '最大震度' }),
-            el('span', { class: 'details__scaleValue', text: hasIntensity(ev.maxIntensity) ? style.label : '—' }),
+            el('span', { class: 'details__scaleLabel', text: t('details.scaleLabel') }),
+            el('span', { class: 'details__scaleValue', text: hasIntensity(ev.maxIntensity) ? style.label : t('meta.emDash') }),
           ),
           el('div', { class: 'details__ident' },
-            el('h3', { class: 'details__name', text: ev.epicenter?.name ?? '震源不明' }),
+            el('h3', { class: 'details__name', text: ev.epicenter?.name ?? t('feed.name.unknown') }),
             el('div', { class: 'details__chips' },
-              ev.preliminary ? badge('暫定情報', 'warn') : badge('詳細情報', 'ok'),
-              ev.simulated ? badge('SIMULATION', 'sim') : null,
-              ev.revision > 1 ? badge(`第${ev.revision}報`, 'neutral') : null,
+              ev.preliminary ? badge(t('details.badge.preliminary'), 'warn') : badge(t('details.badge.detailed'), 'ok'),
+              ev.simulated ? badge(t('demo.simBadge'), 'sim') : null,
+              ev.revision > 1 ? badge(t('alert.serial', { n: ev.revision }), 'neutral') : null,
             ),
-            el('p', { class: 'details__time', text: `${formatJst(ev.originTime)} ごろ` }),
+            el('p', { class: 'details__time', text: t('details.approx', { time: formatJst(ev.originTime) }) }),
           ),
         ),
       );
 
       body.appendChild(
         el('dl', { class: 'kv' },
-          kvPair('マグニチュード', formatMagnitude(magnitude)),
-          kvPair('深さ', formatDepth(ev.epicenter?.depthKm ?? -1)),
-          kvPair('震央', coordinates(ev.epicenter)),
-          kvPair('発表', ev.issuedAt ? `${formatJst(ev.issuedAt)}（${infoTypeLabel(ev.infoType)}）` : infoTypeLabel(ev.infoType)),
-          kvPair('受信', `${formatJst(ev.receivedAt)}（${formatAge(ev.receivedAt, state.now)}）`),
+          kvPair(t('details.kv.magnitude'), formatMagnitude(magnitude)),
+          kvPair(t('details.kv.depth'), formatDepth(ev.epicenter?.depthKm ?? -1)),
+          kvPair(t('details.kv.epicenter'), coordinates(ev.epicenter)),
+          kvPair(
+            t('details.kv.issued'),
+            ev.issuedAt
+              ? `${formatJst(ev.issuedAt)}（${infoTypeLabel(ev.infoType)}）`
+              : infoTypeLabel(ev.infoType),
+          ),
+          kvPair(t('details.kv.received'), `${formatJst(ev.receivedAt)}（${formatAge(ev.receivedAt, state.now)}）`),
         ),
       );
 
@@ -84,7 +95,7 @@ export function createDetails(opts: { onClose: () => void }): { el: HTMLElement;
       );
 
       if (ev.epicenter?.provisional) {
-        body.appendChild(el('p', { class: 'details__warn', text: '震源は仮定震源要素です。確定値ではありません。' }));
+        body.appendChild(el('p', { class: 'details__warn', text: t('details.provisional') }));
       }
 
       // ---- observed intensities ---------------------------------------
@@ -95,8 +106,8 @@ export function createDetails(opts: { onClose: () => void }): { el: HTMLElement;
         body.appendChild(
           el('div', { class: 'points' },
             el('div', { class: 'points__head' },
-              el('h4', { text: '各地の震度' }),
-              el('span', { class: 'points__count', text: `${ev.points.length}地点` }),
+              el('h4', { text: t('details.points.title') }),
+              el('span', { class: 'points__count', text: t('details.points.count', { n: ev.points.length }) }),
             ),
             el('ul', { class: 'points__list' },
               ...shown.map((p) => {
@@ -109,18 +120,19 @@ export function createDetails(opts: { onClose: () => void }): { el: HTMLElement;
               }),
             ),
             ev.points.length > shown.length
-              ? el('p', { class: 'points__more', text: `他 ${ev.points.length - shown.length} 地点（上位のみ表示）` })
+              ? el('p', { class: 'points__more', text: t('details.points.more', { n: ev.points.length - shown.length }) })
               : null,
           ),
         );
       } else {
-        body.appendChild(el('p', { class: 'details__hint', text: '各地の震度はまだ発表されていません。' }));
+        body.appendChild(el('p', { class: 'details__hint', text: t('details.points.pending') }));
       }
 
       body.appendChild(
         el('p', { class: 'details__source' },
-          `情報源: ${ev.source.provider}${ev.source.relayed ? '（気象庁の情報を中継）' : ''}`,
-          ev.sourceIds.length > 1 ? `・電文 ${ev.sourceIds.length}件を統合` : '',
+          t('details.source', { provider: ev.source.provider }) +
+            (ev.source.relayed ? t('details.sourceRelayed') : '') +
+            (ev.sourceIds.length > 1 ? t('details.sourceMerged', { n: ev.sourceIds.length }) : ''),
         ),
       );
     },

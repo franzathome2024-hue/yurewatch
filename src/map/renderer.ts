@@ -276,9 +276,10 @@ export class MapRenderer {
     // Label block. Kept inside the canvas: on a phone the crosshair can sit at
     // the right edge, and a clipped prediction label is worse than none.
     const compact = this.viewport.width < 520;
-    const text = compact
-      ? `${eew.label}${eew.sublabel ? ` ${eew.sublabel.replace('予測最大震度', '最大')}` : ''}`
-      : `${eew.label}　${eew.sublabel ?? ''}`.trim();
+    // `sublabel` already carries the localized "estimated max intensity" line;
+    // the short form keeps only its value, which is what a phone has room for.
+    const shortSub = eew.sublabel ? eew.sublabel.replace(/^(予測最大震度|Est\. max intensity)\s*/, '') : '';
+    const text = compact ? `${eew.label}${shortSub ? ` ${shortSub}` : ''}` : eew.sublabel ? `${eew.label}　${eew.sublabel}` : eew.label;
     ctx.font = `700 ${compact ? 11 : 12}px "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
     const maxW = this.viewport.width - 24;
     let w = ctx.measureText(text).width;
@@ -289,7 +290,9 @@ export class MapRenderer {
       label = `${label}…`;
       w = ctx.measureText(label).width;
     }
-    const bx = Math.min(Math.max(8, x + 26), this.viewport.width - w - 22);
+    // Keep the label clear of the zoom/recenter controls stacked on the right.
+    const controlGutter = this.viewport.width < 700 ? 62 : 70;
+    const bx = Math.min(Math.max(8, x + 26), this.viewport.width - w - controlGutter);
     const by = Math.min(Math.max(20, y - 12), this.viewport.height - 20);
     ctx.fillStyle = 'rgba(12,16,24,0.88)';
     roundRect(ctx, bx - 8, by - 14, w + 16, 26, 7);

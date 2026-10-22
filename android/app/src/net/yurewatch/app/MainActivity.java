@@ -90,6 +90,8 @@ public class MainActivity extends Activity {
         }
 
         webView.addJavascriptInterface(new NativeNet(this, webView), "YureWatchNative");
+        // Language preference storage (see NativePrefs / src/i18n/storage.ts).
+        webView.addJavascriptInterface(new NativePrefs(this), "YureWatchPrefs");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override

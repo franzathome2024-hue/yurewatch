@@ -4,6 +4,7 @@ import { getScenario } from './demo/scenarios';
 import { detectTransport } from './net/transport';
 import { LiveFeed, type FeedEvent } from './net/liveFeed';
 import { Store, initialState, type AppMode, type AppState } from './state/store';
+import { initLocale, normalizeLocale, onLocaleChange, setLocale, t } from './i18n';
 import { App } from './ui/app';
 import { AlertAudio } from './ui/audio';
 
@@ -22,8 +23,16 @@ function showFatal(message: string): void {
   const boot = document.getElementById('boot');
   if (!boot) return;
   boot.dataset.error = 'true';
-  boot.textContent = `起動できませんでした: ${message} アプリを再起動してください。`;
+  boot.setAttribute('data-stalled', 'true');
+  boot.textContent = t('boot.fatal', { message });
 }
+
+/*
+ * Restore the saved language before anything renders, so the first paint is
+ * already in the right language. Japanese is the default for a fresh install;
+ * the preference is never taken from the device locale.
+ */
+initLocale();
 
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('error', (event) => {
@@ -35,6 +44,10 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 }
 
 const params = new URLSearchParams(window.location.search);
+// `?lang=en` / `?lang=ja` forces a language for screenshots and tests. It is a
+// convenience for developers: the switch in the header is the normal control.
+const langParam = normalizeLocale(params.get('lang'));
+if (langParam) setLocale(langParam);
 const demoParam = params.get('demo');
 const demoAudio = params.get('demoAudio') === '1';
 const soundParam = params.get('sound') === '1';
@@ -193,6 +206,7 @@ function render(): void {
 }
 
 store.subscribe(() => render());
+onLocaleChange(() => render());
 render();
 
 /* 1 Hz clock for relative times and alert expiry. */

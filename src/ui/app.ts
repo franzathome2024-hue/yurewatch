@@ -10,6 +10,7 @@ import { createEventList } from './eventList';
 import { createHeader } from './header';
 import { createDemoPanel } from './demoPanel';
 import { createLegend, createSections } from './sections';
+import { t } from '../i18n';
 
 export type MobileTab = 'feed' | 'detail' | 'info';
 
@@ -40,6 +41,11 @@ export class App {
   private mapFallback: HTMLElement;
   private tabBar: HTMLElement;
   private simBanner: HTMLElement;
+  private simBannerText = el('span');
+  private tabButtons = new Map<MobileTab, HTMLButtonElement>();
+  private tabLabels = new Map<MobileTab, HTMLElement>();
+  private footerNote = el('span', { class: 'footer__note' });
+  private mapAriaTargets: { canvas: HTMLElement; zoomIn: HTMLElement; zoomOut: HTMLElement; recenter: HTMLElement } | null = null;
   private soundButton: HTMLButtonElement;
   private tab: MobileTab = 'feed';
   private rails: { left: HTMLElement; right: HTMLElement };
@@ -60,7 +66,7 @@ export class App {
       class: 'map__canvas',
       tabindex: '0',
       role: 'application',
-      'aria-label': '日本地図。ドラッグで移動、ピンチまたはスクロールで拡大縮小。',
+      'aria-label': t('map.aria'),
     });
 
     // Inline SVG icons rather than text glyphs: "⌖"/"＋" are missing from some
@@ -68,11 +74,11 @@ export class App {
     const icon = (path: string) =>
       el('span', { class: 'mapControls__icon', html: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>` });
     const controls = el('div', { class: 'mapControls' });
-    const zoomIn = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': '拡大' },
+    const zoomIn = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': t('map.zoomIn') },
       icon('<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'));
-    const zoomOut = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': '縮小' },
+    const zoomOut = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': t('map.zoomOut') },
       icon('<path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'));
-    const recenter = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': '日本全体を表示' },
+    const recenter = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': t('map.recenter') },
       icon(
         '<circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
           '<path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
@@ -85,8 +91,8 @@ export class App {
     this.mapFallback = el('div', { class: 'map__fallback', hidden: 'hidden' });
 
     this.simBanner = el('div', { class: 'simBanner', hidden: 'hidden' },
-      badge('SIMULATION', 'sim'),
-      el('span', { text: '表示中のデータはすべて模擬データです。実際の地震情報ではありません。' }),
+      badge(t('demo.simBadge'), 'sim'),
+      this.simBannerText,
     );
 
     const mapWrap = el('section', { class: 'map' },
@@ -105,9 +111,10 @@ export class App {
           onSelectEvent: (id) => handlers.onSelectEvent(id),
           onError: (message) => this.showMapError(message),
         });
+        this.mapAriaTargets = { canvas, zoomIn, zoomOut, recenter };
         this.pushMapState(this.store.get());
       } catch (err) {
-        this.showMapError(`地図の初期化に失敗しました: ${String(err)}`);
+        this.showMapError(t('map.error', { message: String(err) }));
       }
     });
 
@@ -121,7 +128,7 @@ export class App {
     );
     this.rails = { left: leftRail, right: rightRail };
 
-    this.tabBar = el('nav', { class: 'tabbar', 'aria-label': '表示切り替え' });
+    this.tabBar = el('nav', { class: 'tabbar', 'aria-label': t('tab.aria') });
     const tabIcons: Record<MobileTab, string> = {
       feed: '<path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
       detail:
@@ -131,21 +138,20 @@ export class App {
         '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
         '<path d="M12 11v5.5M12 7.6v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
     };
-    const tabs: Array<[MobileTab, string]> = [
-      ['feed', '地震情報'],
-      ['detail', '詳細'],
-      ['info', '情報'],
-    ];
-    for (const [id, label] of tabs) {
+    const tabs: MobileTab[] = ['feed', 'detail', 'info'];
+    for (const id of tabs) {
+      const label = el('span', { class: 'tabbar__label', text: t(`tab.${id}`) });
       const button = el('button', { class: 'tabbar__btn', type: 'button', 'data-tab': id },
         el('span', {
           class: 'tabbar__icon',
           'aria-hidden': 'true',
           html: `<svg viewBox="0 0 24 24">${tabIcons[id]}</svg>`,
         }),
-        el('span', { class: 'tabbar__label', text: label }),
+        label,
       );
       button.addEventListener('click', () => this.setTab(id));
+      this.tabButtons.set(id, button);
+      this.tabLabels.set(id, label);
       this.tabBar.appendChild(button);
     }
 
@@ -153,12 +159,13 @@ export class App {
       class: 'footer__btn',
       type: 'button',
       'aria-pressed': 'false',
-      text: '音声: OFF',
+      text: t('app.audio.off'),
     });
     this.soundButton.addEventListener('click', () => handlers.onToggleSound());
 
+    this.footerNote.textContent = t('app.disclaimer');
     const footer = el('footer', { class: 'footer' },
-      el('span', { class: 'footer__note', text: '情報閲覧アプリです。地震の予測・独自検出は行いません。必ず気象庁の発表と自治体の指示を確認してください。' }),
+      this.footerNote,
       el('span', { class: 'footer__spacer' }),
       this.soundButton,
       el('span', { class: 'footer__build', text: `v${__APP_VERSION__}` }),
@@ -181,7 +188,7 @@ export class App {
 
   private showMapError(message: string): void {
     this.mapFallback.hidden = false;
-    this.mapFallback.textContent = `${message} 一覧表示は引き続き利用できます。`;
+    this.mapFallback.textContent = `${message} ${t('map.errorSuffix')}`;
   }
 
   setTab(tab: MobileTab): void {
@@ -199,7 +206,20 @@ export class App {
   }
 
   update(state: AppState): void {
+    // Static, localised labels are refreshed on every pass: a language switch is
+    // just another state update, so nothing here needs a separate code path.
+    this.simBannerText.textContent = t('sim.banner');
+    for (const [id, label] of this.tabLabels) label.textContent = t(`tab.${id}`);
+    this.tabBar.setAttribute('aria-label', t('tab.aria'));
+    if (this.mapAriaTargets) {
+      this.mapAriaTargets.canvas.setAttribute('aria-label', t('map.aria'));
+      this.mapAriaTargets.zoomIn.setAttribute('aria-label', t('map.zoomIn'));
+      this.mapAriaTargets.zoomOut.setAttribute('aria-label', t('map.zoomOut'));
+      this.mapAriaTargets.recenter.setAttribute('aria-label', t('map.recenter'));
+    }
+
     this.header.update(state);
+    this.legend.update(state);
     this.alertPanel.update(state);
     this.feed.update(state);
     this.details.update(state);
@@ -210,7 +230,8 @@ export class App {
     this.simBanner.hidden = !sim;
     this.root.classList.toggle('app--sim', sim);
 
-    this.soundButton.textContent = state.preferences.soundEnabled ? '音声: ON' : '音声: OFF';
+    this.soundButton.textContent = state.preferences.soundEnabled ? t('app.audio.on') : t('app.audio.off');
+    this.soundButton.setAttribute('aria-label', t('app.audio.aria'));
     this.soundButton.setAttribute('aria-pressed', state.preferences.soundEnabled ? 'true' : 'false');
     this.soundButton.disabled = false;
 

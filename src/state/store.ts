@@ -7,6 +7,7 @@ import type {
   TsunamiInfo,
 } from '../core/models';
 import { DEFAULT_ALERT_POLICY, expireAlert, ingestEew, type AlertPolicy } from './alert';
+import { t } from '../i18n';
 import { ingestEvents } from './events';
 
 export type AppMode = 'live' | 'demo';
@@ -263,34 +264,34 @@ export function freshnessOf(at: number | null, now: number): Freshness {
 export function freshnessLabel(f: Freshness): string {
   switch (f) {
     case 'fresh':
-      return '最新';
+      return t('fresh.fresh');
     case 'aging':
-      return 'やや遅延';
+      return t('fresh.aging');
     case 'stale':
-      return '情報が古い';
+      return t('fresh.stale');
     case 'no-data':
-      return 'データなし';
+      return t('fresh.nodata');
     default:
-      return '時刻不明';
+      return t('fresh.unknown');
   }
 }
 
 export function connectionLabel(state: ConnectionState): string {
   switch (state) {
     case 'live':
-      return 'ライブ接続';
+      return t('conn.live');
     case 'degraded':
-      return '接続不安定';
+      return t('conn.degraded');
     case 'stale':
-      return '更新停止';
+      return t('conn.stale');
     case 'offline':
-      return 'オフライン';
+      return t('conn.offline');
     case 'connecting':
-      return '接続中';
+      return t('conn.connecting');
     case 'demo':
-      return 'デモモード';
+      return t('conn.demo');
     default:
-      return '未接続';
+      return t('conn.none');
   }
 }
 

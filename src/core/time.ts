@@ -1,8 +1,14 @@
+import { getLocale, t } from '../i18n';
+
 /**
  * Time helpers.
  *
  * The app displays JST (Asia/Tokyo) regardless of device timezone, because the
  * data is about Japan. All instants are epoch ms internally.
+ *
+ * Japanese uses JMA's own `YYYY/MM/DD HH:mm:ss` shape; English uses the
+ * unambiguous `YYYY-MM-DD HH:mm:ss`. Neither depends on the device locale, so a
+ * timestamp can never be misread across languages.
  */
 
 export const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -42,51 +48,53 @@ function jstParts(epochMs: number) {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** `2026/10/22 07:56:14` in JST. */
+/** `2026/10/22 07:56:14` (ja) or `2026-10-22 07:56:14` (en), in JST. */
 export function formatJst(epochMs: number | null | undefined, withSeconds = true): string {
-  if (epochMs === null || epochMs === undefined || !Number.isFinite(epochMs)) return '—';
+  if (epochMs === null || epochMs === undefined || !Number.isFinite(epochMs)) return t('meta.emDash');
   const p = jstParts(epochMs);
-  const base = `${p.year}/${pad(p.month)}/${pad(p.day)} ${pad(p.hour)}:${pad(p.minute)}`;
+  const sep = getLocale() === 'ja' ? '/' : '-';
+  const date = [p.year, pad(p.month), pad(p.day)].join(sep);
+  const base = `${date} ${pad(p.hour)}:${pad(p.minute)}`;
   return withSeconds ? `${base}:${pad(p.second)}` : base;
 }
 
 /** `10/22 07:56` — compact form for list rows. */
 export function formatJstShort(epochMs: number | null | undefined): string {
-  if (epochMs === null || epochMs === undefined) return '—';
+  if (epochMs === null || epochMs === undefined) return t('meta.emDash');
   const p = jstParts(epochMs);
   return `${pad(p.month)}/${pad(p.day)} ${pad(p.hour)}:${pad(p.minute)}`;
 }
 
 /** `07:56:14` in JST. */
 export function formatJstClock(epochMs: number | null | undefined): string {
-  if (epochMs === null || epochMs === undefined) return '—';
+  if (epochMs === null || epochMs === undefined) return t('meta.emDash');
   const p = jstParts(epochMs);
   return `${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}`;
 }
 
-/** Relative age in Japanese, e.g. `12秒前`, `3分前`. */
+/** Relative age, e.g. `12秒前` / `12s ago`. */
 export function formatAge(fromMs: number | null | undefined, nowMs: number): string {
-  if (fromMs === null || fromMs === undefined) return '—';
+  if (fromMs === null || fromMs === undefined) return t('meta.emDash');
   const diff = Math.max(0, nowMs - fromMs);
   const s = Math.round(diff / 1000);
-  if (s < 60) return `${s}秒前`;
+  if (s < 60) return t('age.seconds', { n: s });
   const m = Math.round(s / 60);
-  if (m < 60) return `${m}分前`;
+  if (m < 60) return t('age.minutes', { n: m });
   const h = Math.round(m / 60);
-  if (h < 24) return `${h}時間前`;
-  return `${Math.round(h / 24)}日前`;
+  if (h < 24) return t('age.hours', { n: h });
+  return t('age.days', { n: Math.round(h / 24) });
 }
 
 /** Coarse relative phrase used in the event feed. */
 export function formatAgeCoarse(epochMs: number | null | undefined, nowMs: number): string {
-  if (epochMs === null || epochMs === undefined) return '時刻不明';
+  if (epochMs === null || epochMs === undefined) return t('age.unknownTime');
   const diff = Math.max(0, nowMs - epochMs);
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'たった今';
-  if (m < 60) return `${m}分前`;
+  if (m < 1) return t('meta.now');
+  if (m < 60) return t('age.minutes', { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}時間前`;
-  return `${Math.floor(h / 24)}日前`;
+  if (h < 24) return t('age.hours', { n: h });
+  return t('age.days', { n: Math.floor(h / 24) });
 }
 
 /** Seconds between two instants, clamped at zero. */
