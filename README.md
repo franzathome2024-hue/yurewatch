@@ -134,10 +134,12 @@ simulations.
 
 ### Android APK
 
-**Download the built APK (v0.4.0):**
-[yurewatch-0.4.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/yurewatch-0.4.0.apk)
-— its SHA-256 is published next to it in
-[SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/SHA256SUMS).
+**Latest published APK (v0.3.0):**
+[yurewatch-0.3.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.3.0/yurewatch-0.3.0.apk)
+— SHA-256 `8932f5a432d8c230a03212c569098fe7ef9a83d77c6db8db92b2b17e99912f9e`
+(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.3.0/SHA256SUMS)).
+The v0.4.0 interface build is committed here; its APK is published by CI when
+the `v0.4.0` tag is pushed (`.github/workflows/android.yml`).
 That checksum is for the **release asset as published by CI**. A local
 `bash tools/build-apk.sh` produces a byte-different file (different throwaway
 signing key, 181 KiB), so compare against the release not against a local build.
