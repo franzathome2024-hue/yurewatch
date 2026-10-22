@@ -110,6 +110,19 @@ jobs:
           fi
           echo "viewer OK"
 
+      - name: Check the PWA assets
+        run: |
+          set -euo pipefail
+          BASE="https://franzathome2024-hue.github.io/yurewatch"
+          curl -fsS --max-time 30 "$BASE/viewer/manifest.webmanifest" -o /tmp/manifest.json
+          grep -q '"YureWatch"' /tmp/manifest.json
+          grep -q '"start_url": "./"' /tmp/manifest.json
+          curl -fsS --max-time 30 -o /dev/null "$BASE/viewer/sw.js"
+          curl -fsS --max-time 30 -o /dev/null "$BASE/viewer/icons/icon-192.png"
+          curl -fsS --max-time 30 -o /dev/null "$BASE/viewer/icons/icon-512.png"
+          curl -fsS --max-time 30 -o /dev/null "$BASE/viewer/icons/icon-maskable-512.png"
+          echo "manifest, service worker and icons all served"
+
       - name: Check every asset the landing page references
         run: |
           set -euo pipefail

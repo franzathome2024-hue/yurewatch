@@ -202,6 +202,13 @@ to a hand-written landing page — one application, one build, deployed by
 separate workflow and never interact). See [docs/WEBSITE.md](docs/WEBSITE.md)
 for the deployment, verification and rollback procedures.
 
+The web viewer is also an **installable PWA**: it registers a service worker
+that caches only the application shell for offline startup and never intercepts
+or caches feed data, so a cached warning can never be presented as current.
+See [docs/PWA.md](docs/PWA.md) for the evaluation, the caching policy, and an
+honest PWA-vs-APK comparison (including what browsers cannot guarantee:
+background EEW delivery and notifications are not offered or promised).
+
 ---
 
 ## Map framing

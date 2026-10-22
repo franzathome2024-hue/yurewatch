@@ -1,0 +1,35 @@
+{
+  "name": "YureWatch — Japan Earthquake & EEW Viewer",
+  "short_name": "YureWatch",
+  "description": "Informational map viewer for earthquakes, Earthquake Early Warnings (EEW) and tsunami forecasts in Japan. Not a prediction or detection system and not a safety device.",
+  "lang": "en",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070c12",
+  "theme_color": "#070c12",
+  "categories": ["news", "weather", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -72,14 +72,18 @@ npm run site:serve     # http://localhost:4173/yurewatch/
 npm run verify:site    # headless-browser checks against that server
 ```
 
-`npm run verify:site` (37 checks) covers: landing-page metadata, favicon,
+`npm run verify:site` (58 checks) covers: landing-page metadata, favicon,
 canonical and social tags; every screenshot decoding with alt text; the
 "Open Live Viewer" CTA resolving under the subpath; skip link, single `h1`,
 landmarks, keyboard focus, no horizontal overflow at 360 px; zero console errors
 and zero failed requests; the viewer booting, painting its canvas, reaching the
 live connection state against the real API, and its back-link returning to the
 landing page; offline stated in words (オフライン + 状態不明) on a phone viewport;
-and simulation mode labelled as simulation without triggering speech.
+simulation mode labelled as simulation without triggering speech; and the PWA
+layer — manifest/scope/icon validity, service-worker scope, shell-only caching
+with proof that no API response is ever cached, broken-deployment fallback,
+offline startup showing "no data" rather than "live", reconnect recovery, and
+cache eviction on worker update (see [PWA.md](PWA.md)).
 
 ## Rollback
 

@@ -99,13 +99,15 @@ else {
   copyDir(SITE_SRC, OUT);
 }
 
-// 2. The real viewer, unmodified apart from the injected site back-link.
+// 2. The real viewer, unmodified apart from injected site chrome: a back-link
+//    and the PWA wiring (manifest link, touch icon, service-worker
+//    registration). The Android asset copy never receives these.
 if (!existsSync(VIEWER_SRC)) {
   fail(`viewer build missing: ${relative(ROOT, VIEWER_SRC)} (run \`npm run build\` first)`);
 } else {
   mkdirSync(join(OUT, 'viewer'), { recursive: true });
   copyFileSync(VIEWER_SRC, join(OUT, 'viewer', 'index.html'));
-  injectBackLink(join(OUT, 'viewer', 'index.html'));
+  injectViewerExtras(join(OUT, 'viewer', 'index.html'));
 }
 
 // 3. Screenshots, referenced from the landing page.
@@ -124,7 +126,7 @@ for (const name of SCREENSHOTS) {
  * link is injected so it floats above the layout and cannot change the app's
  * measured viewport (framing, canvas size and the QA harness stay untouched).
  */
-function injectBackLink(file) {
+function injectViewerExtras(file) {
   const html = readFileSync(file, 'utf8');
   if (html.includes('data-yw-site-back')) return;
   const link =
@@ -143,10 +145,29 @@ function injectBackLink(file) {
     '.yw-site-back:focus-visible{outline:2px solid #ffd23f;outline-offset:2px}' +
     '@media (max-width:480px){.yw-site-back{left:8px;bottom:8px;font-size:12px;padding:.4rem .7rem}}' +
     '</style>';
+  // PWA wiring. Relative paths throughout, so installability holds at the
+  // GitHub Pages subpath (/yurewatch/viewer/) and any other mount point.
+  // Registration failures are swallowed by design: the viewer must work
+  // identically where service workers are unavailable.
+  const pwaHead =
+    '<link rel="manifest" href="./manifest.webmanifest" />' +
+    '<link rel="apple-touch-icon" href="./icons/icon-192.png" />' +
+    '<meta name="mobile-web-app-capable" content="yes" />' +
+    '<meta name="apple-mobile-web-app-capable" content="yes" />' +
+    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />';
+  const pwaScript =
+    '<script data-yw-pwa>' +
+    "if('serviceWorker' in navigator){" +
+    "window.addEventListener('load',function(){" +
+    "navigator.serviceWorker.register('./sw.js').catch(function(){});" +
+    '});}' +
+    '</script>';
   const out = html
-    .replace(/(<head\b[^>]*>)/i, `$1${style}`)
-    .replace(/(<body\b[^>]*>)/i, `$1${link}`);
+    .replace(/(<head\b[^>]*>)/i, `$1${style}${pwaHead}`)
+    .replace(/(<body\b[^>]*>)/i, `$1${link}`)
+    .replace(/<\/body>/i, `${pwaScript}</body>`);
   if (out === html) fail('could not inject the site back-link into the viewer (<head>/<body> not found)');
+  if (!out.includes('data-yw-pwa')) fail('could not inject the PWA registration into the viewer (</body> not found)');
   writeFileSync(file, out);
 }
 
@@ -200,6 +221,54 @@ if (existsSync(viewerPath)) {
     fail('viewer/index.html references an external resource — the single-file build regressed');
   }
   if (!viewer.includes('data-yw-site-back')) fail('viewer/index.html is missing the injected site back-link');
+  if (!viewer.includes('rel="manifest"')) fail('viewer/index.html is missing the PWA manifest link');
+  if (!viewer.includes('data-yw-pwa')) fail('viewer/index.html is missing the service-worker registration');
+}
+
+// (d2) PWA assets: manifest must be valid, subpath-relative and installable;
+//      the service worker must never touch cross-origin (feed) traffic.
+const manifestPath = join(OUT, 'viewer', 'manifest.webmanifest');
+if (!existsSync(manifestPath)) fail('PWA manifest missing: _site/viewer/manifest.webmanifest');
+else {
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    if (!manifest.name || !manifest.short_name) fail('PWA manifest needs name and short_name');
+    if (manifest.display !== 'standalone') fail('PWA manifest display must be "standalone"');
+    for (const key of ['start_url', 'scope']) {
+      const v = manifest[key];
+      if (typeof v !== 'string' || v.startsWith('/') || /^https?:/i.test(v)) {
+        fail(`PWA manifest ${key} must be relative ("./") so it resolves under the subpath, got: ${v}`);
+      }
+    }
+    const sizes = new Set();
+    let hasMaskable = false;
+    for (const icon of manifest.icons ?? []) {
+      if (icon.src.startsWith('/') || /^https?:/i.test(icon.src)) {
+        fail(`PWA icon src must be relative: ${icon.src}`);
+      }
+      if (!existsSync(join(OUT, 'viewer', icon.src))) fail(`PWA icon missing from artifact: viewer/${icon.src}`);
+      for (const s of String(icon.sizes ?? '').split(' ')) sizes.add(s);
+      if (String(icon.purpose ?? '').includes('maskable')) hasMaskable = true;
+    }
+    if (!sizes.has('192x192') || !sizes.has('512x512')) {
+      fail('PWA manifest icons must include 192x192 and 512x512 (installability requirement)');
+    }
+    if (!hasMaskable) fail('PWA manifest needs a maskable icon');
+  } catch (e) {
+    fail(`PWA manifest is not valid JSON: ${e.message}`);
+  }
+}
+const swPath = join(OUT, 'viewer', 'sw.js');
+if (!existsSync(swPath)) fail('service worker missing: _site/viewer/sw.js');
+else {
+  const sw = readFileSync(swPath, 'utf8');
+  if (!sw.includes('url.origin !== self.location.origin')) {
+    fail('service worker must explicitly bypass cross-origin (feed) requests');
+  }
+  if (!sw.includes('skipWaiting') || !sw.includes('caches.delete')) {
+    fail('service worker must activate promptly and delete stale caches (update safety)');
+  }
+  if (/p2pquake/i.test(sw)) fail('service worker must not reference the feed API at all');
 }
 
 // (e) the landing page must exist and carry the required metadata
