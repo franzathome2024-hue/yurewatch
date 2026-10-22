@@ -87,9 +87,8 @@ simulations.
 
 **Download the built APK (v0.1.1):**
 [yurewatch-0.1.1.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/yurewatch-0.1.1.apk)
-— the SHA-256 of the published file is in
-[SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/SHA256SUMS)
-and is also listed in the release notes.
+— SHA-256 `d5ddfd9d98289986e7298813458961c849fbcb47c34b52d4e98ffb2e26389c86`
+(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.1.1/SHA256SUMS)).
 Android 7.0 (API 24) or newer. You will need to allow installation from
 unknown sources, because this is not distributed through Google Play.
 
