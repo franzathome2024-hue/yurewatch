@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.4.0 (unreleased in this tree) — 2026-10-22
+
+### Milestone 2 — geographic data audit
+
+- **The southern Ryūkyūs were missing because of our clip box, not because of
+  Natural Earth.** `BOUNDS` in `scripts/build_map_data.py` started at 127.5 °E,
+  which is east of Miyakojima (125.3), Ishigakijima (124.2), Iriomote (123.8) and
+  Yonaguni (123.0). All four are present in the upstream `ne_10m_admin_1_states_provinces`
+  file. The box now covers 122.5–148.0 °E / 23.5–46.5 °N; the previous release
+  note blaming the dataset was wrong and has been corrected in `docs/DATA_SOURCES.md`.
+- **16 islands that Natural Earth genuinely lacks** (≥ 5 km²: Tarama 20.1 km²,
+  Hateruma 12.9, Kuroshima 10.1, the Kerama group, Kumejima's satellites, six in
+  Kagoshima) are filled from 国土数値情報 N03-2025 (data date 2025-01-01,
+  公共データ利用規約 1.0). 327 vertices. Attribution added to the map line, the
+  About panel and `meta.sources`. The full national N03 swap was measured and
+  rejected — see §2c of `docs/DATA_SOURCES.md`.
+- **Amami Ōshima, Kakeroma, Tokunoshima, Kikaijima, Okinoerabu and Yoron are
+  Kagoshima, not Okinawa.** Natural Earth attributes all six to JP-47; N03
+  re-assigns them. `tests/islandCoverage.test.ts` fails if that regresses.
+- **The Sakishima islands were drawn but unreachable.** `clampCamera()` clamped
+  panning to a hard-coded mainland box, so the camera stopped at 128.68 °E — 4.5°
+  short of Ishigakijima. The clamp now uses the shipped geometry's extent.
+- Generator fixes: open rings (the repeated closing vertex is gone), 3-decimal
+  snapping with `set_precision` for N03 rings (independent rounding had produced
+  two bow-ties and dropped two islands), superseded Natural Earth islets removed
+  when an N03 island replaces them, and `meta.note`/`meta.coverage` record exactly
+  what was added.
+- Data: 347 rings / 17,960 vertices / 302 KiB (was 162 rings / 11,351 / 189 KiB).
+
+### Milestone 3 — framing, projection, overlays and labels
+
+- **Coverage is a contract, not a constant.** `src/map/framing.ts` defines
+  `mainland` and `archipelago` as rules over the shipped rings and measures the
+  camera rectangle from the rings each rule selects, so a profile cannot promise
+  what it does not frame.
+- **On-map overlays reserve their own space.** Elements with `data-map-anchor`
+  (simulation banner, legend, control column) are measured and passed to the
+  camera as insets, capped per side. The banner used to sit across Sakhalin and
+  the Kurils at the default framing.
+- **`全国` no longer breaks into one character per line** on a 34 px button.
+- **Labels are excluded from the reserved chrome band**, so attribution text no
+  longer prints across the 沖縄県 label on a landscape phone.
+- **Region-level labels below 1.8× the profile fit.** A 360 px phone drew one
+  prefecture name; it now draws 9 labels (regions + the prefectures that fit).
+- **Renderer zoom ratio now matches the camera** (it was computed from a box
+  1.33–1.38× smaller than the profile, so the default view was styled as if zoomed
+  out).
+- Removed: the dead double clamp in `clampCamera()` and the unused
+  `PRIMARY_VIEW_BOUNDS`.
+- QA: `tools/map-qa.mjs` gained an overlay-vs-land check and a land/ocean contrast
+  check; two existing probes were rewritten because they were measuring the wrong
+  thing (fixed luma threshold vs dimmed prefectures; hard-coded "ocean" points that
+  the new islands invalidated). **109/109 across 9 viewports**; 281 unit tests.
+
 ## v0.4.0 — 2026-10-22
 
 Milestone 1: evidence-based interface refinement. Every change below was measured

@@ -1,6 +1,6 @@
 import { hasIntensity, scaleStyle } from '../core/intensity';
 import type { EarthquakeEvent, EewAlert, JmaScale, TsunamiGrade, TsunamiInfo } from '../core/models';
-import { resolvePrefecture } from '../data/prefectures';
+import { PREFECTURES, resolvePrefecture } from '../data/prefectures';
 import {
   JAPAN_BOUNDS,
   fitBounds,
@@ -116,6 +116,23 @@ export interface SceneInput {
   now: number;
   /** Max markers drawn (perf guard on old devices). */
   markerLimit?: number;
+  /**
+   * Scale at which the *active framing profile* exactly fills the viewport.
+   *
+   * Styling decisions (label density, graticule step, coastline weight) are all
+   * expressed as `camera.scale / fitScale`. When this was computed from a
+   * hard-coded mainland box instead of the profile the camera actually used, the
+   * renderer believed every view was 1.33–1.38× further out than it was: at the
+   * default framing it thought zoomRatio ≈ 0.73, so it drew the sparse,
+   * zoomed-out label set and 5° graticule on a fully zoomed-in view.
+   */
+  fitScale?: number;
+  /**
+   * Screen-space chrome the framing reserved (scale bar, attribution, control
+   * column, banner). Labels are kept out of it, otherwise a label is printed on
+   * top of the attribution line at the bottom of a short viewport.
+   */
+  chromeInsets?: { top: number; right: number; bottom: number; left: number };
   /** Newest tsunami bulletin (already reduced to "current" by the store). */
   tsunami?: TsunamiInfo | null;
   /** User preference: draw the 津波予報区 layer at all. */
@@ -186,8 +203,8 @@ export function tsunamiGradeColor(grade: TsunamiGrade): string {
 
 export function buildScene(input: SceneInput): MapScene {
   const { geometry, camera, viewport, theme, events, selectedId, alert, intensityByPref, now } = input;
-  const fit = fitBounds(JAPAN_BOUNDS, viewport);
-  const zoomRatio = camera.scale / fit.scale;
+  const fitScale = input.fitScale ?? fitBounds(JAPAN_BOUNDS, viewport).scale;
+  const zoomRatio = camera.scale / Math.max(1e-9, fitScale);
 
   // ---- prefecture styling -------------------------------------------
   const alerted = new Map<string, JmaScale>();
@@ -304,10 +321,28 @@ export function buildScene(input: SceneInput): MapScene {
       return { pref, w, h, screen: worldToScreen(camera, viewport, pref.label) };
     })
     // Label only what can carry a name legibly at this scale.
-    .filter(({ w, h, screen }) => w >= 34 && h >= 16 && screen.x > 2 && screen.y > 2 && screen.x < viewport.width - 2 && screen.y < viewport.height - 2)
+    .filter(({ w, h, screen }) => {
+      const ins = input.chromeInsets ?? { top: 0, right: 0, bottom: 0, left: 0 };
+      // A name is worth printing when the prefecture is big enough to be
+      // identifiable, not when it is wider than the text: on a 360 px phone the
+      // old 34x16 gate matched nothing at all and the map carried no place names
+      // whatsoever. 22x10 plus the collision test below gives 8-11 labels there.
+      const minW = viewport.width < 520 ? 22 : 30;
+      const minH = viewport.width < 520 ? 10 : 14;
+      return (
+        w >= minW &&
+        h >= minH &&
+        screen.x > ins.left - 12 &&
+        screen.y > ins.top - 8 &&
+        screen.x < viewport.width - ins.right + 12 &&
+        screen.y < viewport.height - ins.bottom + 8
+      );
+    })
     .sort((a, b) => b.w * b.h - a.w * a.h);
 
-  const labelCap = zoomRatio > 2.2 ? 47 : zoomRatio > 1.2 ? 24 : 12;
+  // With zoomRatio now measured against the profile fit, 1.0 is the default
+  // view — which is where the most names need to be legible, not the fewest.
+  const labelCap = zoomRatio > 2.4 ? 47 : zoomRatio > 1.15 ? 26 : 17;
   for (const { pref, screen } of candidates) {
     if (labels.length >= labelCap) break;
     const labelW = pref.name.length * 11.5;
@@ -323,6 +358,61 @@ export function buildScene(input: SceneInput): MapScene {
       weight: 500,
       color: theme.label,
     });
+  }
+
+  // ---- region labels --------------------------------------------------
+  // Below roughly 1.8x the profile fit a prefecture is 10-25 px across: no
+  // prefecture name fits, and an unlabelled archipelago reads as an empty map
+  // (measured on 360x740: exactly one prefecture label qualified). Regional
+  // names are the level of detail that fits there, and they are the level a
+  // reader is actually using when looking at the whole country.
+  // Only when the prefecture tier could not carry the map: on a desktop frame
+  // 17 prefecture names are placed and adding 東北/関東/中国 on top of them is
+  // clutter, while on a 360 px phone one name is placed and the map is empty.
+  if (zoomRatio < 1.8 && labels.length < 12) {
+    const byRegion = new Map<string, { x: number; y: number; weight: number }>();
+    for (const pref of geometry.prefectures) {
+      const meta = PREFECTURES.find((p) => p.code === pref.code);
+      if (!meta) continue;
+      const w = Math.abs(pref.bbox.maxX - pref.bbox.minX) * camera.scale;
+      const h = Math.abs(pref.bbox.maxY - pref.bbox.minY) * camera.scale;
+      if (w < 2 || h < 2) continue;
+      const acc = byRegion.get(meta.region) ?? { x: 0, y: 0, weight: 0 };
+      const weight = Math.max(1, w * h);
+      acc.x += pref.label.x * weight;
+      acc.y += pref.label.y * weight;
+      acc.weight += weight;
+      byRegion.set(meta.region, acc);
+    }
+    const ordered = [...byRegion.entries()]
+      .map(([name, acc]) => {
+        const world = { x: acc.x / acc.weight, y: acc.y / acc.weight };
+        return { name, screen: worldToScreen(camera, viewport, world) };
+      })
+      .filter(({ screen }) => screen.x > 24 && screen.x < viewport.width - 24 && screen.y > 18 && screen.y < viewport.height - 18)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const { name, screen } of ordered) {
+      const width = name.length * 13;
+      // Region names are placed against other *text* only. Testing them against
+      // every epicentre marker rejected seven of the eight regions on a phone,
+      // because a country-scale view has markers scattered across it; markers are
+      // drawn after labels, so where they do coincide the marker simply sits on
+      // top of the name — the same compromise the reference app makes.
+      const hitsText = labels.some(
+        (l) => Math.abs(l.x - screen.x) < (l.text.length * 11 + width) / 2 && Math.abs(l.y - screen.y) < 15,
+      );
+      if (hitsText) continue;
+      placed.push({ x: screen.x, y: screen.y, w: width, h: 16 });
+      labels.push({
+        text: name,
+        x: screen.x,
+        y: screen.y,
+        alpha: 0.62,
+        size: 12,
+        weight: 600,
+        color: theme.label,
+      });
+    }
   }
 
   // Epicentre labels: selected first, then the two most recent events.

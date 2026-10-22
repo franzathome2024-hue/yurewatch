@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DETACHED_ISLET_MAX_AREA_DEG2,
-  DETACHED_ISLET_MAX_LAT,
+  REMOTE_ISLET_MAX_LAT,
+  REMOTE_ISLET_MIN_LON,
   MAINLAND_MIN_LAT,
   defaultProfile,
   framingInsets,
@@ -63,29 +63,45 @@ describe('framing profiles', () => {
     }
   });
 
-  it('does not frame the uninhabited Izu islets, but still ships them', () => {
-    const rect = profileRect(geometry, 'archipelago');
-    const south = worldYToLat(rect.maxY);
-    // Framing stops at Okinawa, not at 24.2°N where Minami-Iwo-To sits.
-    expect(south).toBeGreaterThan(DETACHED_ISLET_MAX_LAT - 0.5);
-    // The rings are still present in the geometry, so panning can reach them.
-    const all = geometry.prefectures.reduce((n, p) => n + p.rings.length, 0);
-    const framed = profileRingKeys(geometry, 'archipelago').length;
-    expect(framed).toBeLessThan(all);
-    // Three Izu volcanoes + two Kerama islets in the current dataset.
-    expect(all - framed).toBe(5);
-  });
-
-  it('keeps Okinawa inside the archipelago frame', () => {
+  it('frames the inhabited Sakishima islands but not the uninhabited Izu volcanoes', () => {
     const bounds = profileBounds(geometry, 'archipelago');
-    expect(bounds.south).toBeLessThan(26.7);
-    expect(bounds.west).toBeLessThan(128);
+    // Yonaguni (24.46 N, 122.94 E) is the westernmost inhabited point; if the
+    // frame stops east of it the user cannot see the island group being framed.
+    expect(bounds.south).toBeLessThan(24.2);
+    expect(bounds.west).toBeLessThan(123.1);
+    // The three Izu/Ogasawara volcanoes are still excluded from the *frame*...
+    const excluded = geometry.prefectures
+      .flatMap((pref) => pref.rings.map((ring, index) => ({ pref, ring, key: `pref:${pref.code}:${index}` })))
+      .filter((entry) => !profileRingKeys(geometry, 'archipelago').includes(entry.key));
+    expect(excluded.length).toBeGreaterThan(0);
+    for (const { ring } of excluded) {
+      const eastLon = ((ring.bbox.maxX * 360 - 180) + 180) % 360 - 180;
+      expect(eastLon).toBeGreaterThan(REMOTE_ISLET_MIN_LON);
+      expect(worldYToLat(ring.bbox.minY)).toBeLessThan(REMOTE_ISLET_MAX_LAT);
+    }
+    // ...but every one of them is still shipped, so panning can reach it.
+    const all = geometry.prefectures.reduce((n, p) => n + p.rings.length, 0);
+    expect(profileRingKeys(geometry, 'archipelago').length).toBe(all - excluded.length);
   });
 
-  it('excludes islands only below the detached-islet latitude', () => {
-    // Guard against a threshold that could swallow a populated island.
-    expect(DETACHED_ISLET_MAX_AREA_DEG2).toBeGreaterThan(0.05 * 0.05);
-    expect(DETACHED_ISLET_MAX_LAT).toBeLessThan(26.9);
+  it('keeps Okinawa and the Sakishima group inside the archipelago frame', () => {
+    const bounds = profileBounds(geometry, 'archipelago');
+    expect(bounds.south).toBeLessThan(24.2);
+    expect(bounds.west).toBeLessThan(123.1);
+    expect(bounds.east).toBeGreaterThan(145.0);
+  });
+
+  it('keeps every Sakishima island out of the mainland frame', () => {
+    // 30 N is the documented boundary; nothing in the Nansei chain may leak in.
+    const bounds = profileBounds(geometry, 'mainland');
+    expect(bounds.south).toBeGreaterThan(29.9);
+  });
+
+  it('excludes remote islets only far east of the Sakishima group', () => {
+    // Guard against a rule that could swallow a populated island: the excluded
+    // box sits 15 degrees east of Yonaguni and east of every Ryukyu island.
+    expect(REMOTE_ISLET_MIN_LON).toBeGreaterThan(131.5); // east of Kerama
+    expect(REMOTE_ISLET_MAX_LAT).toBeLessThan(27.0); // south of Chichijima (27.09 N)
   });
 });
 
@@ -132,6 +148,27 @@ describe('viewport-aware framing', () => {
       expect(nw.x).toBeGreaterThanOrEqual(insets.left - 1);
       expect(se.y).toBeLessThanOrEqual(vp.height - insets.bottom + 1);
     }
+  });
+
+  it('never reserves more than half the pane for chrome', () => {
+    // The overlay reservation is measured from the DOM and capped in the shell;
+    // the static insets must leave the map a usable share on their own. At
+    // 724x154 the old fixed 18 px padding on both axes left 82% of a strip that
+    // had no room to give.
+    for (const [, vp] of viewports) {
+      const i = framingInsets(vp);
+      expect(i.top + i.bottom).toBeLessThan(vp.height * 0.5);
+      expect(i.left + i.right).toBeLessThan(vp.width * 0.5);
+      // The attribution line needs 30 px at the bottom on every viewport.
+      expect(i.bottom).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('reserves the attribution band even on a 154 px strip', () => {
+    const i = framingInsets({ width: 724, height: 154, dpr: 2 });
+    expect(i.bottom).toBeGreaterThanOrEqual(20);
+    expect(i.bottom).toBeLessThanOrEqual(26);
+    expect(i.top + i.bottom).toBeLessThan(154 * 0.5);
   });
 
   it('fills the axis it is limited by', () => {

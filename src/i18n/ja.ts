@@ -226,7 +226,8 @@ export const ja = {
   'about.li3': '深さ150km以深など、予想最大震度が発表されないケースがあります。',
   'about.li4': '通信の遅延・欠落により、情報が届かない場合があります。',
   'about.li5': '最終的な判断は気象庁の発表と自治体の指示に従ってください。',
-  'about.attribution': '地図: Natural Earth（パブリックドメイン）。データ: P2P地震情報 JSON API v2（気象庁の情報を中継）。',
+  'about.attribution':
+    '地図: Natural Earth（パブリックドメイン）／出典：国土数値情報（行政区域）を加工して作成。データ: P2P地震情報 JSON API v2（気象庁の情報を中継）。',
 
   /* ---------------- demo ---------------- */
   'demo.title': 'デモ / テスト',
@@ -271,7 +272,7 @@ export const ja = {
   'map.frameMainland': '本土',
   'map.frameSwitch': '表示範囲を「{to}」に切り替え',
   'map.eewPredicted': '予測最大震度 {scale}',
-  'map.attribution': '地図データ: Natural Earth（パブリックドメイン）',
+  'map.attribution': '地図データ: Natural Earth・国土数値情報（行政区域）を加工',
   'map.legendEew': 'EEW震央（予測）',
   'map.scaleBar': '{km} km',
   'map.canvasUnsupported': 'この端末では地図を描画できません（Canvas 2D 非対応）',
@@ -357,7 +358,7 @@ export const ja = {
   'set.demo': 'デモ / 模擬データ',
   'set.sectionAbout': 'このアプリについて',
   'set.version': 'バージョン {version}',
-  'set.attribution': '地図データ: Natural Earth（パブリックドメイン）',
+  'set.attribution': '地図データ: Natural Earth・国土数値情報（行政区域）を加工',
   /* v0.2.1 tsunami forecast-region layer */
   'map.legendTsunami': '津波予報区（発表中のみ）',
   'map.legendTsunamiNone': '現在、津波予報区の発表はありません',

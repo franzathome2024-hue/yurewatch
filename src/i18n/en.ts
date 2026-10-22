@@ -234,7 +234,7 @@ export const en: Record<MessageKey, string> = {
   'about.li4': 'Network delay or loss can prevent information from arriving at all.',
   'about.li5': 'For any decision, follow JMA announcements and instructions from your local authority.',
   'about.attribution':
-    'Map: Natural Earth (public domain). Data: P2P Earthquake Information JSON API v2 (relaying JMA information).',
+    'Map: Natural Earth (public domain); source: MLIT National Land Numerical Information (administrative areas), modified. Data: P2P Earthquake Information JSON API v2 (relaying JMA information).',
 
   /* ---------------- demo ---------------- */
   'demo.title': 'Demo / test',
@@ -277,7 +277,7 @@ export const en: Record<MessageKey, string> = {
   'map.frameMainland': 'Mainland',
   'map.frameSwitch': 'Switch map coverage to {to}',
   'map.eewPredicted': 'Est. max intensity {scale}',
-  'map.attribution': 'Map data: Natural Earth (public domain)',
+  'map.attribution': 'Map: Natural Earth + MLIT administrative areas (modified)',
   'map.legendEew': 'EEW epicenter (estimated)',
   'map.scaleBar': '{km} km',
   'map.canvasUnsupported': 'This device cannot render the map (Canvas 2D unsupported)',
@@ -363,7 +363,7 @@ export const en: Record<MessageKey, string> = {
   'set.demo': 'Demo / simulated data',
   'set.sectionAbout': 'About this app',
   'set.version': 'Version {version}',
-  'set.attribution': 'Map data: Natural Earth (public domain)',
+  'set.attribution': 'Map: Natural Earth + MLIT administrative areas (modified)',
   /* v0.2.1 tsunami forecast-region layer */
   'map.legendTsunami': 'Tsunami forecast regions (when issued)',
   'map.legendTsunamiNone': 'No tsunami forecast regions are in effect',

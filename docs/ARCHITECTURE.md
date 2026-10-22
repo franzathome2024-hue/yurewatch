@@ -154,15 +154,36 @@ contains:
 
 ### D7 — Canvas map with compiled geometry
 
-Geometry (6,059 points, 47 prefectures + 4 neighbouring countries) is projected to
+Geometry (17,960 points, 47 prefectures + 9 neighbouring countries) is projected to
 Web-Mercator world units once and compiled to `Path2D`. Each frame changes only
 the transform; overlays are drawn in screen space so strokes and text stay crisp.
 No map SDK, no API key, no tile requests: the app renders offline, in an APK, with
-no attribution-injection requirements beyond crediting Natural Earth.
+no attribution-injection requirements beyond crediting Natural Earth and MLIT
+(国土数値情報 行政区域).
 
-The initial camera refits to Japan on layout changes **until the operator pans or
-zooms** (`userAdjusted`). Without this, an EEW arriving (which resizes the panel
-above the map) left the map stale-sized and Japan off-centre.
+The initial camera refits on layout changes **until the operator pans or zooms**
+(`userAdjusted`). Without this, an EEW arriving (which resizes the panel above the
+map) left the map stale-sized and Japan off-centre. Once the operator *has* taken
+control, a layout change instead preserves the visible world window by shrinking
+the scale, so a shortened pane cannot crop the epicentre the operator is watching.
+
+**Framing is a contract, not a constant.** `src/map/framing.ts` defines two
+profiles as rules over the shipped rings — `mainland` (every ring whose northern
+edge is at or above 30 °N) and `archipelago` (everything except the three
+Izu/Ogasawara volcanoes beyond 140.5 °E) — and the camera rectangle is measured
+from the rings each rule selects. A hand-written lat/lon box cannot know what the
+dataset holds, and the one that used to be here fitted Ogasawara outside the frame
+while claiming to include it. Because membership is per *ring*, 東京都 contributes
+Honshū to the mainland profile without dragging the Ogasawara islands into it.
+
+**Overlays reserve their own space.** Elements carrying `data-map-anchor`
+(simulation banner, legend button, control column) are measured against the map
+pane and their rectangles are passed to the camera as insets, capped at 14–34 % of
+the pane per side. The static insets in `framingInsets()` are only a floor: they
+cannot know whether a banner is showing, and on a demo build the banner used to be
+drawn across Sakhalin and the Kurils. The renderer's `zoomRatio` is measured
+against the *active profile's* fit scale, so "1.0" means "the profile is framed"
+for both profiles instead of disagreeing with the camera by 1.35×.
 
 ### D8 — Demo engine reuses production parsers
 

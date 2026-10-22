@@ -154,6 +154,23 @@ const DYNAMIC = [
     resizeTo: { w: 900, h: 1200 },
   },
   {
+    id: 'sakishima-rendering',
+    label: 'Southern Ryūkyū rendering (Sakishima group, zoomed past the country frame)',
+    w: 1024,
+    h: 768,
+    query: 'demo=normal',
+    probeOnly: true,
+    // Focused one at a time, because at a zoom where an individual island is
+    // more than a few pixels across the group does not fit on one screen.
+    probeIslands: [
+      ['Miyakojima', 125.30, 24.79],
+      ['Ishigakijima', 124.16, 24.34],
+      ['Iriomote', 123.80, 24.34],
+      ['Yonaguni', 123.00, 24.46],
+      ['Hateruma', 123.78, 24.06],
+    ],
+  },
+  {
     id: 'alert-strip-open',
     label: 'Alert strip changes height (EEW warning)',
     w: 1366,
@@ -229,14 +246,35 @@ async function pixelStats(page, samples) {
     };
     const land = pts?.land ?? [];
     const ocean = pts?.ocean ?? [];
+    // Ocean reference for this frame. A fixed "land is luma > 35" rule broke as
+    // soon as the renderer dimmed the prefectures an event does not touch: a
+    // dimmed prefecture reads ~21, i.e. below a threshold tuned on undimmed
+    // land (~40), and three correctly drawn prefectures were reported as ocean.
+    const oceanRef = ocean.length
+      ? ocean
+          .map((p) => lumaAt(p.x, p.y))
+          .sort((a, b) => a - b)[Math.floor(ocean.length / 2)]
+      : 22;
     let landHit = 0;
     const misses = [];
+    const landSamples = [];
     for (const p of land) {
-      if (lumaAt(p.x, p.y) > 35) landHit++;
-      else if (misses.length < 5) misses.push(p.name);
+      const v = lumaAt(p.x, p.y);
+      landSamples.push({ x: p.x, y: p.y, luma: v, name: p.name });
+      if (v >= oceanRef + 6) landHit++;
+      else if (misses.length < 5) misses.push(`${p.name}@${v.toFixed(0)}`);
     }
     let oceanHit = 0;
-    for (const p of ocean) if (lumaAt(p.x, p.y) > 35) oceanHit++;
+    let landSum = 0;
+    let oceanSum = 0;
+    for (const p of land) landSum += lumaAt(p.x, p.y);
+    const oceanSamples = [];
+    for (const p of ocean) {
+      const v = lumaAt(p.x, p.y);
+      oceanSamples.push({ x: p.x, y: p.y, luma: v });
+      oceanSum += v;
+      if (v >= oceanRef + 12) oceanHit++;
+    }
 
     return {
       width,
@@ -244,7 +282,20 @@ async function pixelStats(page, samples) {
       landRatio: count / sampled,
       landBox: count ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY } : null,
       meanLuma: lumaSum / sampled,
-      probe: { landTotal: land.length, landHit, landMisses: misses, oceanTotal: ocean.length, oceanHit },
+      probe: {
+        landTotal: land.length,
+        landHit,
+        landMisses: misses,
+        oceanTotal: ocean.length,
+        oceanHit,
+        // Mean luminance of land vs open ocean. The basemap's whole job is
+        // telling the two apart, so this is measured rather than eyeballed.
+        oceanRef,
+        landMean: land.length ? landSum / land.length : null,
+        oceanMean: ocean.length ? oceanSum / ocean.length : null,
+        landSamples,
+        oceanSamples,
+      },
     };
   }, samples);
 }
@@ -254,6 +305,12 @@ async function measure(page) {
     const host = document.querySelector('.mapPane');
     const canvas = document.querySelector('.map__canvas');
     const controls = document.querySelector('.mapControls');
+    const overlays = [...document.querySelectorAll('[data-map-anchor]')]
+      .filter((n) => !n.hidden && n.offsetParent)
+      .map((n) => {
+        const r = n.getBoundingClientRect();
+        return { anchor: n.dataset.mapAnchor ?? '', x: r.x, y: r.y, w: r.width, h: r.height };
+      });
     const h = host?.getBoundingClientRect();
     const c = canvas?.getBoundingClientRect();
     const k = controls?.getBoundingClientRect();
@@ -263,6 +320,7 @@ async function measure(page) {
       host: toRect(h),
       canvasCss: toRect(c),
       controls: toRect(k),
+      overlays,
       backing: canvas ? { width: canvas.width, height: canvas.height } : null,
       dpr: window.devicePixelRatio,
       debug: window.__yurewatch?.map?.() ?? null,
@@ -383,7 +441,16 @@ function judge(m, pixels, declared) {
       return { x: p.x, y: p.y, name: f.name };
     })
     .filter(Boolean)
-    .filter((p) => p.x > 4 && p.y > 4 && p.x < canvas.w - 4 && p.y < canvas.h - 4);
+    .filter((p) => p.x > 4 && p.y > 4 && p.x < canvas.w - 4 && p.y < canvas.h - 4)
+    // A label is printed at the ring's own centroid, so the darkest, busiest
+    // pixel of a prefecture is exactly the sample point. 北海道's sample was
+    // landing on the 北海道 glyphs and reading as "land not painted".
+    .filter(
+      (p) =>
+        !(m.debug?.labels ?? []).some(
+          (l) => p.x >= l.x - 6 && p.x <= l.x + l.w + 6 && p.y >= l.y - 6 && p.y <= l.y + l.h + 6,
+        ),
+    );
   // Open-water reference points (Pacific, Sea of Japan, East China Sea).
   // Corners of the canvas are useless here: with neighbouring countries now
   // drawn as context they frequently land on land.
@@ -401,6 +468,18 @@ function judge(m, pixels, declared) {
     [129.0, 25.0],
     [145.5, 41.0],
   ]
+    // Keep only candidates that are genuinely open water *in this dataset*:
+    // outside every ring and at least 0.25 deg from the nearest one. Hard-coding
+    // "ocean" coordinates stopped being safe once the southern Ryukyus and the
+    // Kurils arrived — 129 E 25 N is now a few kilometres from Yonaguni.
+    .filter(([lon, lat]) =>
+      FEATURES.every((f) => {
+        const b = ringBox(f.ring);
+        const near =
+          lon > b.w - 0.25 && lon < b.e + 0.25 && lat > b.s - 0.25 && lat < b.n + 0.25;
+        return !near;
+      }),
+    )
     .map(([lon, lat]) => toScreen(cam, { lon, lat }))
     .filter((p) => p.x > 10 && p.y > 10 && p.x < canvas.w - 10 && p.y < canvas.h - 10)
     // Drop points that a drawn label overlaps: bright text there is correct.
@@ -436,6 +515,41 @@ function judge(m, pixels, declared) {
     Math.abs(centreOffset.x) <= Math.max(3, canvas.w * 0.02) && Math.abs(centreOffset.y) <= Math.max(3, canvas.h * 0.02),
     `offset ${Math.round(centreOffset.x)}px, ${Math.round(centreOffset.y)}px`,
   );
+  // ---- Milestone 3: overlays and legibility -------------------------------
+  // Overlays are positioned over the map. The framing reserves their space, so
+  // with correct insets the declared coverage rectangle cannot intersect them.
+  const overlayBoxes = (m.overlays ?? []).map((o) => ({
+    anchor: o.anchor,
+    x: o.x - m.canvasCss.x,
+    y: o.y - m.canvasCss.y,
+    w: o.w,
+    h: o.h,
+  }));
+  const covers = (o, pt) => pt.x >= o.x && pt.x <= o.x + o.w && pt.y >= o.y && pt.y <= o.y + o.h;
+  // The honest test is not "overlay vs the coverage *rectangle*" — a corner
+  // control column beside open ocean costs nothing. It is "overlay vs a sampled
+  // point that should be land". Those points come from the ring centroids the
+  // renderer was asked to draw, so a hit means real geography is hidden.
+  const hiddenLand = (pixels?.probe?.landSamples ?? []).filter((pt) =>
+    overlayBoxes.some((o) => covers(o, pt)),
+  );
+  add(
+    'on-map overlays do not hide sampled land',
+    hiddenLand.length === 0,
+    hiddenLand.length
+      ? `${hiddenLand.length} land sample(s) under ${[...new Set(overlayBoxes.filter((o) => hiddenLand.some((pt) => covers(o, pt))).map((o) => o.anchor))].join(', ')}`
+      : `${overlayBoxes.length} overlay(s) clear of ${pixels?.probe?.landSamples?.length ?? 0} land samples`,
+  );
+
+  const landMean = pixels?.probe?.landMean ?? null;
+  const oceanMean = pixels?.probe?.oceanMean ?? null;
+  const delta = landMean !== null && oceanMean !== null ? landMean - oceanMean : null;
+  add(
+    'land and ocean are measurably distinct (delta luma >= 10)',
+    delta !== null && delta >= 10,
+    delta === null ? 'no samples' : `land ${landMean.toFixed(1)} vs ocean ${oceanMean.toFixed(1)} (delta ${delta.toFixed(1)})`,
+  );
+
   add('canvas is not stretched (aspect within 0.5%)', stretch <= 0.005, `${pct(stretch)} aspect drift`);
   add('canvas backing store matches CSS box', Math.abs(m.backing.width - m.canvasCss.w * m.dpr) <= 2 && Math.abs(m.backing.height - m.canvasCss.h * m.dpr) <= 2,
     `${m.backing.width}x${m.backing.height} vs ${Math.round(m.canvasCss.w * m.dpr)}x${Math.round(m.canvasCss.h * m.dpr)}`);
@@ -452,7 +566,9 @@ function judge(m, pixels, declared) {
     'predicted land is actually painted (>=95% of visible samples)',
     Boolean(probe) && probe.landHit / Math.max(1, probe.landTotal) >= 0.95,
     probe
-      ? `${probe.landHit}/${probe.landTotal} visible land samples lit (${subPixelRings} sub-pixel islets skipped)`
+      ? `${probe.landHit}/${probe.landTotal} visible land samples lit (${subPixelRings} sub-pixel islets skipped${
+          probe.landMisses?.length ? `; missed: ${probe.landMisses.join(', ')}` : ''
+        })`
       : 'no probe',
   );
   // Sampled as a rate rather than "none at all": on a 154 px-tall pane a
@@ -460,10 +576,23 @@ function judge(m, pixels, declared) {
   // At most one sample may be covered by something drawn on top (a marker, the
   // EEW callout, a clipped label). A genuine failure — ocean rendered as land —
   // lights most of the samples, not one.
+  // Ocean samples that sit under an overlay are excluded: the simulation banner
+  // covers the Sea of Japan on short panes, and counting that as "ocean drawn as
+  // land" would have hidden a real regression behind a chrome artefact.
+  const insets = m.debug?.framing?.insets ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  const inChrome = (pt) =>
+    pt.x < insets.left ||
+    pt.y < insets.top ||
+    pt.x > canvas.w - insets.right ||
+    pt.y > canvas.h - insets.bottom;
+  const oceanVisible = (probe?.oceanSamples ?? []).filter(
+    (pt) => !overlayBoxes.some((o) => covers(o, pt)) && !inChrome(pt),
+  );
+  const oceanLit = oceanVisible.filter((pt) => pt.luma >= (probe?.oceanRef ?? 22) + 12).length;
   add(
     'open ocean stays water (at most 1 overlay-covered sample)',
-    Boolean(probe) && probe.oceanHit <= Math.max(1, Math.round(probe.oceanTotal * 0.1)),
-    probe ? `${probe.oceanHit}/${probe.oceanTotal} ocean samples lit` : 'no probe',
+    oceanVisible.length > 0 && oceanLit <= 1,
+    `${oceanLit}/${oceanVisible.length} visible ocean samples lit`,
   );
   add(
     'no overlay covers the map centre',
@@ -519,6 +648,51 @@ for (const c of [...CASES, ...DYNAMIC]) {
   }
 
   const m = await measure(page);
+  if (c.probeOnly) {
+    // Island-by-island rendering probe: focus each island, then sample the
+    // centre of its largest shipped ring. This is the check that fails if the
+    // geometry is present in the JSON but never reaches the canvas.
+    const islandChecks = [];
+    for (const [name, lon, lat] of c.probeIslands) {
+      // Recentre first so the zoom factor is a fixed multiple of the profile
+      // fit; then focus last, because focusing only raises the zoom and never
+      // moves the camera, and zooming after it would drift the centre.
+      await page.evaluate(() => window.__yurewatch.recenter());
+      await page.evaluate(() => window.__yurewatch.zoom(8));
+      await page.evaluate(([lo, la]) => window.__yurewatch.focus(lo, la), [lon, lat]);
+      await page.waitForTimeout(700);
+      const mm = await measure(page);
+      const camI = {
+        cx: mm.debug.cx, cy: mm.debug.cy, scale: mm.debug.scale,
+        w: mm.debug.viewport.width, h: mm.debug.viewport.height,
+      };
+      const probe = { x: lonX(lon) && toScreen(camI, { lon, lat }).x, y: toScreen(camI, { lon, lat }).y };
+      const stats = await pixelStats(page, { land: [{ ...probe, name }], ocean: [] });
+      const lit = stats?.probe?.landHit === 1;
+      const inside = probe.x > 6 && probe.y > 6 && probe.x < camI.w - 6 && probe.y < camI.h - 6;
+      islandChecks.push({
+        name: `renders ${name} when focused on it`,
+        ok: lit && inside,
+        detail: `probe ${Math.round(probe.x)},${Math.round(probe.y)} ${inside ? 'on canvas' : 'off canvas'} · luma ${lit ? '>35 (land)' : '<=35 (not painted)'}`,
+      });
+      await page.screenshot({ path: join(SHOTS, `${c.id}-${name.toLowerCase()}.png`) });
+    }
+    results.push({
+      id: c.id,
+      label: c.label,
+      viewport: { w: c.w, h: c.h, dpr: c.dpr ?? 1, resizedTo: null },
+      host: m.host,
+      camera: { cx: m.debug.cx, cy: m.debug.cy, scale: m.debug.scale, w: m.debug.viewport.width, h: m.debug.viewport.height },
+      cover: null,
+      fillX: 0, fillY: 0, margins: { left: 0, right: 0, top: 0, bottom: 0 },
+      declaredProfile: 'island focus',
+      alertStrip: null,
+      errors,
+      checks: islandChecks,
+    });
+    await page.close();
+    continue;
+  }
   const declared = m.debug?.coverage?.features ?? null;
   const geom = judge(m, null, declared);
   const pixels = await pixelStats(page, geom.samples);
@@ -559,7 +733,7 @@ for (const r of results) {
   lines.push(`- viewport \`${r.viewport.w}x${r.viewport.h}\` @${r.viewport.dpr}x${r.viewport.resizedTo ? ` → resized to \`${r.viewport.resizedTo.w}x${r.viewport.resizedTo.h}\`` : ''}`);
   lines.push(`- map host ${fmtRect(r.host)} · canvas ${Math.round(cam.w)}x${Math.round(cam.h)}`);
   lines.push(`- camera centre (${cam.cx.toFixed(5)}, ${cam.cy.toFixed(5)}) scale ${cam.scale.toFixed(1)}`);
-  lines.push(`- projected coverage ${fmtRect(r.cover)} → fill x ${pct(r.fillX)} / y ${pct(r.fillY)}; margins L${Math.round(r.margins.left)} R${Math.round(r.margins.right)} T${Math.round(r.margins.top)} B${Math.round(r.margins.bottom)}`);
+  if (r.cover) lines.push(`- projected coverage ${fmtRect(r.cover)} → fill x ${pct(r.fillX)} / y ${pct(r.fillY)}; margins L${Math.round(r.margins.left)} R${Math.round(r.margins.right)} T${Math.round(r.margins.top)} B${Math.round(r.margins.bottom)}`);
   lines.push(`- profile: ${r.declaredProfile ?? '**not declared**'}`);
   if (r.alertStrip) lines.push(`- alert strip: map host ${Math.round(r.alertStrip.baselineHostHeight)}px → ${Math.round(r.alertStrip.hostHeight)}px`);
   lines.push('');

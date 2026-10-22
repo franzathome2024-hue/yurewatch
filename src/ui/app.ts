@@ -55,6 +55,7 @@ export class App {
   private map: MapView | null = null;
   private mapFallback: HTMLElement;
   private simBanner: HTMLElement;
+  private measureMapInsets: (() => void) | null = null;
   private simBannerText = el('span', { class: 'simBanner__text' });
   private side: HTMLElement;
   private sideTabs = new Map<SideView, HTMLButtonElement>();
@@ -125,7 +126,12 @@ export class App {
     recenter.addEventListener('click', () => handlers.onRecenter());
     frame.addEventListener('click', () => handlers.onFrameToggle());
 
-    const controls = el('div', { class: 'mapControls', role: 'group', 'aria-label': t('map.controlsLabel') }, zoomIn, zoomOut, recenter, frame);
+    const controls = el('div', {
+      class: 'mapControls',
+      role: 'group',
+      'aria-label': t('map.controlsLabel'),
+      'data-map-anchor': 'bottom-right',
+    }, zoomIn, zoomOut, recenter, frame);
     this.mapButtons = { canvas, zoomIn, zoomOut, recenter, frame };
 
     this.mapFallback = el('div', { class: 'map__fallback', hidden: 'hidden' });
@@ -133,10 +139,12 @@ export class App {
     // The banner is the container; a bordered badge inside it was a container
     // inside a container for a single word. The tag keeps the label, loses the
     // second rounded rectangle.
-    this.simBanner = el('div', { class: 'simBanner', hidden: 'hidden' },
+    this.simBanner = el('div', { class: 'simBanner', hidden: 'hidden', 'data-map-anchor': 'top-left' },
       el('span', { class: 'simBanner__tag', text: t('demo.simBadge') }),
       this.simBannerText,
     );
+
+    this.legend.el.dataset.mapAnchor = 'top-right';
 
     const mapPane = el('section', { class: 'mapPane' },
       canvas,
@@ -146,19 +154,68 @@ export class App {
       this.mapFallback,
     );
 
+    /**
+     * Reserve the space the on-map overlays actually occupy.
+     *
+     * Every element with `data-map-anchor` is measured against the map pane and
+     * the largest reservation on each side wins. Static padding guessed at these
+     * sizes in framingInsets(); it could not know that the demo banner is
+     * showing, and the banner then sat on top of Sakhalin and the Kurils.
+     */
+    const measureInsets = (): void => {
+      const host = canvas.getBoundingClientRect();
+      if (host.width < 1 || host.height < 1) return;
+      const out = { top: 0, right: 0, bottom: 0, left: 0 };
+      const gap = 8;
+      const overlays = mapPane.querySelectorAll<HTMLElement>('[data-map-anchor]');
+      overlays.forEach((node) => {
+        if (node.hidden || !node.offsetParent) return;
+        const anchor = node.dataset.mapAnchor;
+        const r = node.getBoundingClientRect();
+        if (!anchor || r.width < 2 || r.height < 2) return;
+        if (anchor.includes('top')) out.top = Math.max(out.top, r.bottom - host.top + gap);
+        if (anchor.includes('bottom')) out.bottom = Math.max(out.bottom, host.bottom - r.top + gap);
+        if (anchor.includes('right')) out.right = Math.max(out.right, host.right - r.left + gap);
+        if (anchor.includes('left')) out.left = Math.max(out.left, r.right - host.left + gap);
+      });
+      // Cap every reservation. A wrapped four-line banner on a 360 px phone
+      // measured 300 px tall, and reserving all of it left a 40 px map; the
+      // point of the reservation is that overlays do not hide the *country*,
+      // not that the map is squeezed into whatever is left over.
+      this.map?.setOverlayInsets({
+        // Short panes need a taller top reservation than tall ones: the banner
+        // is a fixed-height object, and on a 150 px landscape strip 14 % of it
+        // (21 px) is less than the banner itself.
+        top: Math.min(out.top, Math.round(host.height * (host.height < 420 ? 0.3 : 0.14))),
+        bottom: Math.min(out.bottom, Math.round(host.height * 0.18)),
+        left: Math.min(out.left, Math.round(host.width * 0.1)),
+        right: Math.min(out.right, Math.round(host.width * 0.14)),
+      });
+    };
+    this.measureMapInsets = measureInsets;
+
     requestAnimationFrame(() => {
       try {
         this.map = new MapView(mapPane, canvas as HTMLCanvasElement, DARK_MAP_THEME, {
           onSelectEvent: (id) => handlers.onSelectEvent(id),
           onError: (message) => this.showMapError(message),
-          onProfileChange: () => this.refreshFrameButton(),
+          onProfileChange: () => {
+            this.refreshFrameButton();
+            requestAnimationFrame(measureInsets);
+          },
         });
         this.refreshFrameButton();
         this.pushMapState(this.store.get());
+        requestAnimationFrame(measureInsets);
       } catch (err) {
         this.showMapError(t('map.error', { message: String(err) }));
       }
     });
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => measureInsets()).observe(mapPane);
+    } else if (typeof window !== 'undefined') {
+      window.addEventListener('resize', measureInsets);
+    }
 
     /* -------------------------------------------------------------- side -- */
     const tabs = el('nav', { class: 'sideTabs', role: 'tablist', 'aria-label': t('nav.label') });
@@ -318,7 +375,9 @@ export class App {
     // 740x360 landscape phone the duplicate covered 15 % of the map. Decided in
     // JS rather than in a media query so it cannot drift from the banner again.
     const alertStatesSimulation = state.alert?.simulated === true;
+    const bannerWasHidden = this.simBanner.hidden;
     this.simBanner.hidden = !sim || alertStatesSimulation;
+    if (bannerWasHidden !== this.simBanner.hidden) requestAnimationFrame(() => this.measureMapInsets?.());
     this.root.classList.toggle('app--sim', sim);
     // Drives the compact phone treatment for an alert in force.
     this.root.classList.toggle('app--alert', Boolean(state.alert));

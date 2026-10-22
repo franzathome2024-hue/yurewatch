@@ -1,4 +1,4 @@
-import type { Viewport } from './geo';
+import type { GeoBounds, Viewport } from './geo';
 import {
   clampCamera,
   fitWorldRect,
@@ -19,8 +19,20 @@ import {
   profileRect,
   profileRingKeys,
   type FramingProfile,
+  type Insets,
 } from './framing';
 import { geometry, type MapGeometry } from './mapData';
+
+/** lon/lat extent of the shipped geometry, used to bound panning. */
+function boundsOfGeometry(data: MapGeometry): GeoBounds {
+  const b = data.bbox;
+  return {
+    west: b.minX * 360 - 180,
+    east: b.maxX * 360 - 180,
+    north: Math.atan(Math.sinh(Math.PI * (1 - 2 * b.minY))) * (180 / Math.PI),
+    south: Math.atan(Math.sinh(Math.PI * (1 - 2 * b.maxY))) * (180 / Math.PI),
+  };
+}
 import { MapRenderer } from './renderer';
 import { buildScene, hitTest, type Marker, type MapScene, type SceneInput } from './scene';
 import type { MapTheme } from './theme';
@@ -57,6 +69,21 @@ export class MapView {
   private profile: FramingProfile | null = null;
   private reduceMotion = false;
   private readonly geometryData: MapGeometry;
+  /**
+   * Extent the camera may travel over, taken from the shipped geometry rather
+   * than a mainland constant: the dataset now reaches Yonaguni (122.9 E, 24.5 N)
+   * and a hardcoded 129.3-146.2 E / 30.8-45.6 N box made those islands
+   * unreachable by panning.
+   */
+  private readonly focusBounds: GeoBounds;
+  /**
+   * Insets measured from the overlays that actually sit on the map (simulation
+   * banner, legend button, control column), supplied by the shell via
+   * `setOverlayInsets`. The static defaults in `framingInsets()` cannot know
+   * whether a banner is showing, so on a demo build the banner used to cover
+   * Sakhalin and the Kurils at the default framing.
+   */
+  private overlayInsets: Insets | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private frameCount = 0;
 
@@ -67,6 +94,7 @@ export class MapView {
     private callbacks: MapViewCallbacks,
   ) {
     this.geometryData = geometry();
+    this.focusBounds = boundsOfGeometry(this.geometryData);
     try {
       this.renderer = new MapRenderer(canvas, this.geometryData, theme);
     } catch (err) {
@@ -139,7 +167,7 @@ export class MapView {
       // used to crop the bottom of the view, which is where the epicentre often
       // is. Shrink the scale so the previous world window still fits, then clamp.
       const kept = this.preserveVisible(prev, { width, height, dpr });
-      this.camera = clampCamera(kept, this.viewport, this.limits);
+      this.camera = clampCamera(kept, this.viewport, this.limits, this.focusBounds);
     }
     this.renderer?.resize(this.viewport);
     this.dirty = true;
@@ -162,11 +190,43 @@ export class MapView {
    */
   private fitProfile(): Camera {
     const profile = this.activeProfile();
-    return fitWorldRect(
-      profileRect(this.geometryData, profile),
-      this.viewport,
-      framingInsets(this.viewport),
-    );
+    return fitWorldRect(profileRect(this.geometryData, profile), this.viewport, this.insets());
+  }
+
+  /** Static floor and measured overlays, per side. */
+  private insets(): Insets {
+    const base = framingInsets(this.viewport);
+    const m = this.overlayInsets;
+    if (!m) return base;
+    return {
+      top: Math.max(base.top, m.top),
+      right: Math.max(base.right, m.right),
+      bottom: Math.max(base.bottom, m.bottom),
+      left: Math.max(base.left, m.left),
+    };
+  }
+
+  /**
+   * Reserve space for overlays measured from the DOM.
+   *
+   * Refits when the operator has not taken control yet, and only re-clamps when
+   * they have — changing the insets must never move a map someone is reading.
+   */
+  setOverlayInsets(insets: Insets | null): void {
+    const before = this.overlayInsets;
+    if (before && insets && before.top === insets.top && before.right === insets.right &&
+        before.bottom === insets.bottom && before.left === insets.left) {
+      return;
+    }
+    if (!before && !insets) return;
+    this.overlayInsets = insets;
+    this.limits = this.zoomLimits();
+    this.camera = this.userAdjusted
+      ? clampCamera(this.camera, this.viewport, this.limits, this.focusBounds)
+      : this.fitProfile();
+    this.dirty = true;
+    this.requestFrame();
+    this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
   }
 
   /** Keeps the previously visible world window visible after a layout change. */
@@ -226,7 +286,7 @@ export class MapView {
     const rad = (Math.max(-85, Math.min(85, lat)) * Math.PI) / 180;
     const y = 0.5 - Math.log(Math.tan(Math.PI / 4 + rad / 2)) / (2 * Math.PI);
     const scale = Math.max(this.camera.scale, minScale ?? this.limits.minScale * 2.2);
-    this.camera = clampCamera({ cx: x, cy: y, scale }, this.viewport, this.limits);
+    this.camera = clampCamera({ cx: x, cy: y, scale }, this.viewport, this.limits, this.focusBounds);
     this.dirty = true;
     this.requestFrame();
   }
@@ -271,7 +331,7 @@ export class MapView {
         profile,
         /** Declared coverage, measured from the geometry the profile includes. */
         bounds,
-        insets: framingInsets(this.viewport),
+        insets: this.insets(),
         userAdjusted: this.userAdjusted,
       },
       /** Feature list the QA harness checks for on-screen coverage. */
@@ -334,7 +394,13 @@ export class MapView {
 
   private render(): void {
     if (!this.renderer || !this.input) return;
-    const scene = buildScene({ ...this.input, camera: this.camera, viewport: this.viewport });
+    const scene = buildScene({
+      ...this.input,
+      camera: this.camera,
+      viewport: this.viewport,
+      fitScale: this.fitProfile().scale,
+      chromeInsets: this.insets(),
+    });
     this.scene = scene;
     this.renderer.draw(scene, typeof performance !== 'undefined' ? performance.now() : Date.now(), {
       reduceMotion: this.reduceMotion,
@@ -380,7 +446,7 @@ export class MapView {
       if (this.lastPinch && this.lastPinch.dist > 0) {
         const factor = dist / this.lastPinch.dist;
         this.camera = zoomAt(this.camera, this.viewport, centre, factor, this.limits);
-        this.camera = panBy(this.camera, this.viewport, centre.x - this.lastPinch.centre.x, centre.y - this.lastPinch.centre.y, this.limits);
+        this.camera = panBy(this.camera, this.viewport, centre.x - this.lastPinch.centre.x, centre.y - this.lastPinch.centre.y, this.limits, this.focusBounds);
         this.dragMoved = true;
         this.dirty = true;
         this.requestFrame();
@@ -394,7 +460,7 @@ export class MapView {
       if (Math.abs(dx) > 0) this.userAdjusted = true;
       const dy = p.y - this.lastSingle.y;
       if (Math.abs(dx) + Math.abs(dy) > 2) this.dragMoved = true;
-      this.camera = panBy(this.camera, this.viewport, dx, dy, this.limits);
+      this.camera = panBy(this.camera, this.viewport, dx, dy, this.limits, this.focusBounds);
       this.dirty = true;
       this.requestFrame();
     }
@@ -443,22 +509,22 @@ export class MapView {
         this.zoomBy(1 / 1.3);
         break;
       case 'ArrowLeft':
-        this.camera = panBy(this.camera, this.viewport, step, 0, this.limits);
+        this.camera = panBy(this.camera, this.viewport, step, 0, this.limits, this.focusBounds);
         this.dirty = true;
         this.requestFrame();
         break;
       case 'ArrowRight':
-        this.camera = panBy(this.camera, this.viewport, -step, 0, this.limits);
+        this.camera = panBy(this.camera, this.viewport, -step, 0, this.limits, this.focusBounds);
         this.dirty = true;
         this.requestFrame();
         break;
       case 'ArrowUp':
-        this.camera = panBy(this.camera, this.viewport, 0, step, this.limits);
+        this.camera = panBy(this.camera, this.viewport, 0, step, this.limits, this.focusBounds);
         this.dirty = true;
         this.requestFrame();
         break;
       case 'ArrowDown':
-        this.camera = panBy(this.camera, this.viewport, 0, -step, this.limits);
+        this.camera = panBy(this.camera, this.viewport, 0, -step, this.limits, this.focusBounds);
         this.dirty = true;
         this.requestFrame();
         break;

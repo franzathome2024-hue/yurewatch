@@ -1,7 +1,7 @@
 /**
  * Framing profiles: what "show Japan" actually means.
  *
- * v0.2 used one hand-written lat/lon box (`PRIMARY_VIEW_BOUNDS`) and a comment
+ * v0.2 used one hand-written lat/lon box (`PRIMARY_VIEW_BOUNDS`, since removed) and a comment
  * claiming it showed "the four main islands plus the Okinawa group". Measured
  * against the shipped geometry that claim was false: the box stopped at 26.0 °N
  * while the dataset carries Ogasawara and Okino-Torishima down to 24.2 °N, so
@@ -39,32 +39,26 @@ export const FRAMING_PROFILES: FramingProfile[] = ['mainland', 'archipelago'];
 export const MAINLAND_MIN_LAT = 30.0;
 
 /**
- * Detached-islet rule for the archipelago profile.
+ * Remote-island rule for the archipelago profile.
  *
  * Framing is a statement about where the camera points, not about what is drawn:
  * every ring stays rendered and every ring stays reachable by panning. But a
- * bounding box is decided by its extremes, and the extremes here are three
- * uninhabited Izu/Ogasawara volcanoes — Kita-Iwo-To (5.6 km², 25.4 °N),
- * Iwo-To (23 km², 24.8 °N) and Minami-Iwo-To (3.6 km², 24.2 °N). Including them
- * stretches the frame across 2,800 km of open Pacific and shrinks the mainland
- * and Okinawa into the top half of the canvas.
+ * bounding box is decided by its extremes, and the extremes here are the three
+ * Izu/Ogasawara volcanoes — Kita-Iwo-To (25.4 °N), Iwo-To (24.8 °N) and
+ * Minami-Iwo-To (24.2 °N), all east of 141 °E. Including them stretches the
+ * frame across 400 km of empty Pacific beyond the inhabited Ogasawara group and
+ * shrinks everything else.
  *
- * So the archipelago profile frames every island of consequence — the four main
- * islands, the Nansei chain including Okinawa, and the Ogasawara group down to
- * Chichijima — while islets below 26.5 °N smaller than 0.02 deg² (~220 km²) are
- * drawn but not framed. In the current dataset that rule selects exactly five
- * rings: the three Izu/Ogasawara volcanoes, plus two Kerama islets 20 km west of
- * Okinawa (which stay inside the frame regardless, because Okinawa does).
- *
- * The threshold sits far above those islets (0.0002-0.0027 deg²) and far below
- * Okinawa's main island (0.131 deg²), so it cannot swallow a populated island;
- * tests/framing.test.ts pins that relationship.
+ * Until v0.4.0 this rule was expressed as "south of 26.5 °N and under 0.02 deg²",
+ * which worked only because the dataset stopped at 127.6 °E: the whole Sakishima
+ * group (Miyakojima, Ishigakijima, Iriomote, Yonaguni) was missing. Now that
+ * those islands are in the file, an area threshold would silently exclude
+ * inhabited islands of 25–290 km² from their own archipelago view. The rule is
+ * therefore geographic — a box around the Izu/Ogasawara volcanoes — and tested
+ * against the ring list in tests/framing.test.ts.
  */
-export const DETACHED_ISLET_MAX_AREA_DEG2 = 0.02;
-export const DETACHED_ISLET_MAX_LAT = 26.5;
-
-/** 1 deg² expressed in projected world units² (world spans 360°). */
-const DEG2_IN_WORLD = (1 / 360) ** 2;
+export const REMOTE_ISLET_MIN_LON = 140.5;
+export const REMOTE_ISLET_MAX_LAT = 26.5;
 
 export interface FramingRect {
   minX: number;
@@ -81,13 +75,14 @@ export interface FramingRect {
  */
 function includesRing(
   profile: FramingProfile,
-  ring: { bbox: { minY: number }; area: number },
+  ring: { bbox: { minY: number; maxX: number }; area: number },
 ): boolean {
   const north = worldYToLat(ring.bbox.minY);
   if (profile === 'mainland') return north >= MAINLAND_MIN_LAT;
-  if (north < DETACHED_ISLET_MAX_LAT && ring.area < DETACHED_ISLET_MAX_AREA_DEG2 * DEG2_IN_WORLD) {
-    return false;
-  }
+  // Izu/Ogasawara volcanoes: far east *and* far south. The Sakishima group is
+  // just as far south but 15° west of this box, so it stays framed.
+  const eastLon = ring.bbox.maxX * 360 - 180;
+  if (eastLon > REMOTE_ISLET_MIN_LON && north < REMOTE_ISLET_MAX_LAT) return false;
   return true;
 }
 
@@ -164,8 +159,14 @@ export interface Insets {
 
 export function framingInsets(vp: Viewport): Insets {
   const base = Math.max(10, Math.min(28, Math.round(Math.min(vp.width, vp.height) * 0.055)));
-  // Bottom carries the scale bar + controls; right carries the control column.
-  const bottom = Math.min(Math.round(vp.height * 0.16), base + 26);
+  // Bottom carries the scale bar *and* the in-canvas attribution line (14 px of
+  // text on a 6 px margin), so it can never be smaller than 30 px even on a
+  // 150 px-tall landscape strip — the attribution was printing across the
+  // 沖縄県 label.
+  // 30 px on a normal pane; 20 px on a strip shorter than 220 px, where the
+  // attribution text sits 6 px above the edge and cannot use more anyway.
+  const bottomFloor = vp.height < 220 ? 20 : 30;
+  const bottom = Math.max(bottomFloor, Math.min(Math.round(vp.height * 0.16), base + 26));
   const right = Math.min(Math.round(vp.width * 0.14), base + 22);
   return { top: base, right, bottom: Math.max(base, bottom), left: base };
 }

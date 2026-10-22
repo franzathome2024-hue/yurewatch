@@ -78,17 +78,6 @@ export interface GeoBounds {
  */
 export const JAPAN_BOUNDS: GeoBounds = { west: 129.3, south: 30.8, east: 146.2, north: 45.6 };
 
-/**
- * Frame used for the initial view and the "show all of Japan" control.
- *
- * The four main islands plus the Okinawa group: the region someone monitoring
- * Japan expects to see at once. The dataset also contains detached islets far to
- * the south and east (Okinotorishima, Minamitorishima); fitting to those would
- * shrink the mainland to a strip in the corner. They remain reachable by
- * panning, and are covered by the zoom limits, which are derived from the full
- * geometry.
- */
-export const PRIMARY_VIEW_BOUNDS: GeoBounds = { west: 127.0, south: 26.0, east: 146.6, north: 45.7 };
 
 /** Camera fitted to `bounds` inside a viewport, with padding in px. */
 export function fitBounds(bounds: GeoBounds, vp: Viewport, padding = 24): Camera {
@@ -197,7 +186,19 @@ export const PAN_BOUNDS: GeoBounds = { west: 118, south: 20, east: 158, north: 5
  * bigger than the box (fully zoomed out) it centres instead of fighting the
  * constraint.
  */
-export function clampCamera(cam: Camera, vp: Viewport, limits: ZoomLimits): Camera {
+export function clampCamera(
+  cam: Camera,
+  vp: Viewport,
+  limits: ZoomLimits,
+  /**
+   * Bounds the camera must keep some of on screen. Defaults to the mainland box
+   * for callers that have no dataset; the map passes the *shipped* geometry
+   * bounds, because a hardcoded mainland box made the Sakishima islands
+   * unreachable once they were added — the camera refused to travel west of
+   * 128.7 E, so Ishigakijima was drawn but impossible to look at.
+   */
+  focusBounds: GeoBounds = JAPAN_BOUNDS,
+): Camera {
   const scale = clampScale(cam.scale, limits);
   const nw = project({ lon: PAN_BOUNDS.west, lat: PAN_BOUNDS.north });
   const se = project({ lon: PAN_BOUNDS.east, lat: PAN_BOUNDS.south });
@@ -209,7 +210,10 @@ export function clampCamera(cam: Camera, vp: Viewport, limits: ZoomLimits): Came
   // off the canvas — measured: a hard pan put the viewport's edge 1.5° east of
   // Hokkaidō with nothing on screen. Keep a guaranteed slice of the country
   // visible instead: at least a third of the smaller of (country, viewport).
-  const f = { nw: project({ lon: JAPAN_BOUNDS.west, lat: JAPAN_BOUNDS.north }), se: project({ lon: JAPAN_BOUNDS.east, lat: JAPAN_BOUNDS.south }) };
+  const f = {
+    nw: project({ lon: focusBounds.west, lat: focusBounds.north }),
+    se: project({ lon: focusBounds.east, lat: focusBounds.south }),
+  };
   const focusW = Math.max(1e-9, f.se.x - f.nw.x);
   const focusH = Math.max(1e-9, f.se.y - f.nw.y);
   const keepX = Math.min(focusW, halfW * 2) * 0.35;
@@ -232,11 +236,19 @@ export function clampCamera(cam: Camera, vp: Viewport, limits: ZoomLimits): Came
   };
 }
 
-export function panBy(cam: Camera, vp: Viewport, dxPx: number, dyPx: number, limits: ZoomLimits): Camera {
+export function panBy(
+  cam: Camera,
+  vp: Viewport,
+  dxPx: number,
+  dyPx: number,
+  limits: ZoomLimits,
+  focusBounds: GeoBounds = JAPAN_BOUNDS,
+): Camera {
   return clampCamera(
     { cx: cam.cx - dxPx / cam.scale, cy: cam.cy - dyPx / cam.scale, scale: cam.scale },
     vp,
     limits,
+    focusBounds,
   );
 }
 

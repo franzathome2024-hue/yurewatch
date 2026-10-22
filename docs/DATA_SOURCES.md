@@ -106,10 +106,12 @@ arithmetic so a future change cannot silently exceed the limit.
 
 | Property | Value (this release) |
 | --- | --- |
-| Japan clip box (`meta.bounds`) | 127.5, 24.0, 148.0, 46.5 |
-| **Measured** geometry extent (`meta.geometryBounds`) | 127.636, 24.212, 145.825, 45.52 |
+| Japan clip box (`meta.bounds`) | 122.5, 23.5, 148.0, 46.5 |
+| **Measured** geometry extent (`meta.geometryBounds`) | 122.938, 24.046, 145.825, 45.52 |
 | Context clip box (`meta.contextBounds`) | 114.0, 16.0, 162.0, 56.0 |
-| Prefectures / rings / vertices | 47 / 136 / 17,777 |
+| Prefectures / rings / vertices | 47 / 173 / 10,392 |
+| Context land rings / vertices | 9 / 174 rings / 7,568 vertices |
+| File size | 308,845 B (302 KiB) |
 
 `meta.bounds` is the box the generator *asked* for; `meta.geometryBounds` is what it
 actually got. Earlier releases published only the clip box, which made 148 °E and
@@ -120,36 +122,62 @@ pan limits (118–158 °E / 20–52 °N) so neighbouring countries never end in 
 line inside a reachable view. This also brought Taiwan, the Philippines, Mongolia,
 Hong Kong and the Northern Marianas into the context layer.
 
-### Known completeness gap
+### Coverage gap found in v0.3.0 and how it was closed
 
-**The southern Ryukyus are not in this dataset.** Natural Earth 1:10m holds only the
-northern part of Okinawa prefecture: every 沖縄県 ring starts north of 25.8 °N, so
-Miyakojima, Ishigakijima, Iriomote and Yonaguni are absent. `ne_10m_minor_islands` was
-checked and does not contain them either (verified 2026-10-22: 2,795 polygons, none in
-the 124–125 °E / 24.3–24.8 °N box). Nothing is drawn there, and the app does not
-pretend otherwise.
+**The v0.3.0 claim "the southern Ryukyus are not in this dataset" was wrong, and the
+error was ours.** Natural Earth 1:10m does carry Miyakojima (157 km²), Ishigakijima
+(212 km²), Iriomote (274 km²) and Yonaguni (25 km²) — they are four of the 29 polygons
+in `ne_10m_admin_1_states_provinces` for JP-47. The generator clipped them away: the
+`BOUNDS` box started at **127.5 °E**, which is east of all four. What shipped was a
+basemap with no land west of 127.5 °E, a note blaming the upstream dataset, and no test
+that could notice.
 
-Replacing the basemap with a Japanese national source was evaluated and rejected on
-measured grounds in §2c (MLIT C23 coastline: 2006 only, ≈1.0 km median offset from the
-current data). GSI 行政区域データ would close the gap but is a per-prefecture GML
-dataset orders of magnitude larger than this app's entire geography budget; it has not
-been adopted because it has not been tested here, not because of a licensing problem.
+Measured before/after on this release (2026-10-22):
+
+| | v0.3.0 | now |
+| --- | --- | --- |
+| Okinawa (JP-47) rings / vertices | 12 / 344 | 35 / 471 + reattribution |
+| Kagoshima (JP-46) rings / vertices | 13 / 408 | 27 / 720 |
+| Westernmost vertex | 127.636 °E | 122.938 °E (Yonaguni) |
+| Southernmost vertex | 24.212 °N | 24.046 °N (Hateruma) |
+| File size | 302,097 B | 308,845 B (+2.2 %) |
+
+Two separate fixes were needed, and they are worth keeping apart:
+
+1. **Our clip box** (`BOUNDS` → 122.5, 23.5, 148.0, 46.5) restores everything Natural
+   Earth has, at no data cost. This alone recovers the four headline islands.
+2. **A real upstream gap of 16 islands ≥ 5 km²** (Tarama 20.1 km², Hateruma 12.9 km²,
+   Kuroshima 10.1 km², the Kerama group, Kumejima's satellites, 黒島/竹富 in the
+   Yaeyama, and six in Kagoshima) that Natural Earth 1:10m genuinely does not carry.
+   These are filled from 国土数値情報 N03 (§2a-2) — see below for why only these.
+
+Natural Earth also mis-assigns the **Amami group to Okinawa**: `ne_10m_admin_1_states_provinces`
+puts Amami Ōshima (742 km²), Kakeroma, Tokunoshima, Kikaijima, Okinoerabu and Yoron in
+JP-47. They are Kagoshima (JP-46). N03 now corrects six rings. A test asserts that no
+island-sized ring north of 27.2 °N is attributed to Okinawa.
+
+### What a basemap is not
+
+The land and border geometry is orientation only. It is not a tsunami inundation area,
+not a seismic intensity distribution, and not an impact estimate; nothing in the data
+carries a hazard value. The legend and the About panel say so.
 
 ## 2. In use — bundled geographic data
 
-Two different geographic products are bundled. They are **not** interchangeable,
-and the app never presents one as the other.
+Three geographic products are bundled. They are **not** interchangeable, and the app
+never presents one as another: Natural Earth supplies the basemap, MLIT N03 supplies
+only the islands Natural Earth lacks, and JMA supplies the tsunami forecast regions.
 
-### 2a. Basemap: Natural Earth 1:10m (public domain)
+### 2a. Basemap: Natural Earth 1:10m (public domain) + MLIT N03 gap fill
 
 | Property | Value |
 | --- | --- |
-| Dataset | `ne_10m_admin_1_states_provinces` (Japan, 47 features), `ne_10m_admin_0_countries` (neighbouring land) |
-| Source | <https://www.naturalearthdata.com/> (NACIS CDN) |
-| Licence | Public domain — no attribution required, no share-alike |
-| Bundled file | `src/data/japan-map.json` (~189 KiB, 11,351 vertices, 162 rings) |
-| Generator | `scripts/build_map_data.py` (reproducible; downloads, simplifies, clips) |
-| Processing | Douglas-Peucker 0.0015° for Japan, 0.008° for neighbours; islands ≥ 1e-6 deg²; lakes ≥ 2e-5 deg² kept as hole rings; coordinates rounded to 3 dp |
+| Dataset | `ne_10m_admin_1_states_provinces` (Japan, 47 features), `ne_10m_admin_0_countries` (neighbouring land), plus 国土数値情報 N03-2025 for prefectures 46/47 |
+| Source | <https://www.naturalearthdata.com/> (NACIS CDN); <https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-v3_1.html> |
+| Licence | Natural Earth: public domain. N03: 公共データ利用規約（第1.0版）, attribution **出典：国土数値情報（行政区域）を加工して作成** |
+| Bundled file | `src/data/japan-map.json` (308,845 B / 302 KiB, 17,960 vertices, 347 rings) |
+| Generator | `scripts/build_map_data.py` (reproducible: downloads, dissolves, simplifies, clips, records provenance) |
+| Processing | Douglas-Peucker 0.0015° for Japan, 0.008° for neighbours; islands ≥ 1e-6 deg²; lakes ≥ 2e-5 deg² kept as hole rings; coordinates rounded to 3 dp (N03 rings snapped to a 0.001° grid with `set_precision` so simplification cannot create bow-ties) |
 
 **What it is:** Natural Earth's *administrative* polygons. There is no separate
 "coastline" layer in the data: the land/water edge the user sees is the exterior
@@ -165,10 +193,48 @@ roughly ×3 zoom the shapes read as blocky (Tokyo Bay, Bōsō, the Seto Inland S
 islands). The app does not claim survey accuracy and the legend says the layer is
 for orientation, not navigation.
 
-**Why the higher-detail source is not bundled.** See 2c. Short version: mixing a
-detailed coastline with generalised fills puts two different shorelines on the
-same screen (≈1 km apart, i.e. several pixels at working zoom), and polygonising
+**Why the higher-detail source is not bundled wholesale.** See 2c. Short version:
+mixing a detailed coastline with generalised fills puts two different shorelines on
+the same screen (≈1 km apart, i.e. several pixels at working zoom), and polygonising
 a line-only dataset would invent topology the source does not define.
+
+#### 2a-2. Gap fill — 国土数値情報（行政区域）N03-2025, prefectures 46 and 47 only
+
+| Property | Value |
+| --- | --- |
+| Dataset | 国土数値情報（行政区域）`N03-2025`, `N03-20250101_{46,47}_GML.zip` |
+| Source | <https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-v3_1.html> (MLIT 国土数値情報ダウンロードサービス) |
+| Version / data date | `N03-2025`, **data date 2025-01-01** (shapefile written 2025-01-16), EPSG:6668 |
+| Licence | 公共データ利用規約（第1.0版）. Attribution **出典：国土数値情報（行政区域）を加工して作成** is shown in the map attribution line, the About panel and `meta.sources` |
+| Retrieved | 2026-10-22 |
+| Size used | 2 prefectures: 9,034 + 5,860 municipal polygons (**not** the 600 MB national set) |
+| What is taken | 16 island polygons ≥ 5 km² that the Natural Earth basemap does not contain, dissolved to prefecture and simplified to 0.0015° (327 vertices total), plus 6 rings re-assigned between prefectures |
+| What is *not* taken | the mainland coastline, prefecture borders, cities, and any attribute other than the prefecture code |
+
+**Why this and not a full swap.** Swapping the whole basemap for N03 would multiply
+the download by roughly 20× (a national N03 build is ~600 MB of shapefile before
+simplification), replace a 1:10m generalised coastline with a 1:25,000 one for all of
+Japan (so every polygon the app already ships would move by up to ~1 km), and change
+the visual weight of every screen for no gain in what the app is for. The measured
+gap was 16 islands, all in two prefectures; 327 vertices close it. The rule the
+generator applies is therefore *gap fill, never overlap*: an N03 island is only added
+when less than 20 % of its area is already covered by the shipped basemap (buffered
+0.01° to absorb Natural Earth's generalisation), and a Natural Earth ring is dropped
+when 50 % of it sits inside an added island (otherwise two coastlines a few hundred
+metres apart are drawn on top of each other).
+
+**Trade-off accepted.** Inside the 16 filled islands the shoreline detail is 1:25,000
+simplified, while adjacent islands are 1:10m; at very high zoom the difference is
+visible as a slightly finer outline on Tarama or Hateruma than on Ishigaki. Recorded
+in `meta.coverage.islandsAdded` with area, bbox and vertex count for each island.
+
+**Reproducibility.** `python3 scripts/build_map_data.py` re-downloads both sources
+(cached in `scripts/.naturalearth/`), rebuilds the file byte-identically apart from
+the `built` timestamp, and writes `meta.sources`, `meta.coverage` and `meta.note`.
+`tests/islandCoverage.test.ts` re-checks 10 named islands by point-in-polygon, the
+declared geometry bounds against the actual vertices, ring validity (no self
+intersections, no duplicate or zero-length rings), the clip window, the two framing
+profiles, and the provenance fields.
 
 ### 2b. Tsunami forecast regions: 気象庁 予報区等GISデータ「津波予報区」
 
@@ -207,6 +273,7 @@ earthquake's location, and a cancelled bulletin paints nothing.
 
 | Dataset | Terms | Verdict |
 | --- | --- | --- |
+| 国土数値情報 N03 行政区域 — **full basemap swap** | 公共データ利用規約 1.0 — redistribution permitted with attribution | **Rejected as a replacement, adopted as a gap fill (§2a-2).** A national N03 build is ~600 MB of shapefile before simplification; it would replace the whole 1:10m coastline with 1:25,000 polygons (every shipped shape moves up to ~1 km) and add 5× the vertices for detail the app never shows. Measured gap: 16 islands in two prefectures, closed with 327 vertices. Revisit only if the app starts needing city-level boundaries. |
 | 国土数値情報 C23 海岸線 (MLIT, coastline) | 公共データ利用規約 1.0 — redistribution permitted with attribution | **Verified, usable, not bundled.** Per-prefecture shapefiles (~3 MB each, 47 files). Measured ~1 km median offset from the Natural Earth fills, so drawing it over the current basemap would show two shorelines. It becomes viable only together with polygon data from the same family for the land fill. |
 | 気象庁 予報区等GISデータ（地震情報／細分区域, 緊急地震速報／府県予報区） | same PDL 1.0 | Usable, but the app already highlights EEW areas by prefecture name; a second regional geometry set would duplicate the same information with a different boundary definition. |
 | GSI 基盤地図情報 / 地球地図日本 | 基盤地図情報の利用規約 (attribution, some products require registration) | Not evaluated further: registration/licence review not completed, so not bundled. |
