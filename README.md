@@ -134,15 +134,15 @@ simulations.
 
 ### Android APK
 
-**Latest published APK (v0.3.0):**
-[yurewatch-0.3.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.3.0/yurewatch-0.3.0.apk)
-— SHA-256 `8932f5a432d8c230a03212c569098fe7ef9a83d77c6db8db92b2b17e99912f9e`
-(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.3.0/SHA256SUMS)).
-The v0.4.0 interface build is committed here; its APK is published by CI when
-the `v0.4.0` tag is pushed (`.github/workflows/android.yml`).
-That checksum is for the **release asset as published by CI**. A local
-`bash tools/build-apk.sh` produces a byte-different file (different throwaway
-signing key, 181 KiB), so compare against the release not against a local build.
+**Latest published APK (v0.4.0):**
+[yurewatch-0.4.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/yurewatch-0.4.0.apk)
+— SHA-256 `6a334093c77c5272f4fc3e58b582f968a20f90903864f90d5e70cfc2612afac3`
+(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/SHA256SUMS)),
+built from tag `v0.4.0` (`3103af9`), 226,233 B, versionCode 6 / versionName 0.4.0.
+That checksum is for the **release asset as published by CI**, and it was verified
+by downloading the asset and re-hashing it. A local `bash tools/build-apk.sh`
+produces a byte-different file (different throwaway signing key, ~181 KiB), so
+compare against the release, not against a local build.
 Android 7.0 (API 24) or newer. You will need to allow installation from
 unknown sources, because this is not distributed through Google Play.
 

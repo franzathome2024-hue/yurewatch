@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.0 (unreleased in this tree) — 2026-10-22
+## v0.4.0 — 2026-10-22 (published: tag `v0.4.0`, APK 226,233 B, SHA-256 `6a334093c7…2afac3`)
 
 ### Milestone 2 — geographic data audit
 
