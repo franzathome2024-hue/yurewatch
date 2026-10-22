@@ -131,8 +131,11 @@ simulations.
 
 **Download the built APK (v0.2.1):**
 [yurewatch-0.2.1.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.2.1/yurewatch-0.2.1.apk)
-— SHA-256 `3aaa29df2daafaeeee3e3456520b55985baa7d8b070b622d4607eaa956b23c72`
+— SHA-256 `21dd14f62bca28afdfd6fbaa7aabcf930e8ee0cd7d7c856e4342568e4c456422`
 (also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.2.1/SHA256SUMS)).
+That checksum is for the **release asset as published by CI**. A local
+`bash tools/build-apk.sh` produces a byte-different file (different throwaway
+signing key, 181 KiB), so compare against the release not against a local build.
 Android 7.0 (API 24) or newer. You will need to allow installation from
 unknown sources, because this is not distributed through Google Play.
 
