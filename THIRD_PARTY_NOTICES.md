@@ -68,3 +68,12 @@ No asset, sound, font, map SVG or code from
 `kotoho7/scratch-realtime-earthquake-viewer-page` is redistributed. Its
 `docs/assets` are CC BY-SA 2.0 and its sounds/effects carry separate credits;
 see `docs/REFERENCE_INSPECTION.md` for the full review.
+
+---
+
+## Scope of the project licence
+
+Note on scope: this licence covers the YureWatch source code and its generated
+map data. It does not grant any rights to earthquake information retrieved at
+runtime from P2P地震情報 / the Japan Meteorological Agency, nor to any third-party
+material listed in THIRD_PARTY_NOTICES.md.
