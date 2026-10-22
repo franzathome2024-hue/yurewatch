@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YureWatch</string>
+    <string name="load_error">アプリの読み込みに失敗しました。再起動してください。</string>
+</resources>

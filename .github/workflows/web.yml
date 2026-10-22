@@ -1,0 +1,69 @@
+name: web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: typecheck · unit tests · bundle
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build single-file bundle
+        run: npm run build
+
+      - name: Assert the bundle is self-contained
+        run: |
+          set -euo pipefail
+          if grep -Eq '(src|href)="(https?:)?//' dist/yurewatch.html; then
+            echo "::error::dist/yurewatch.html references an external resource"
+            exit 1
+          fi
+          echo "bundle size: $(du -h dist/yurewatch.html | cut -f1)"
+
+      - name: Upload web bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: yurewatch-web
+          path: dist/yurewatch.html
+
+  browser-checks:
+    name: browser integration checks
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install Chromium
+        run: |
+          npm i --no-save playwright@1.49.0
+          npx playwright install --with-deps chromium
+      - name: Verify shipped build in Chromium
+        # These checks talk to the live public API. A provider outage must not
+        # mark the project red, so the job is allowed to fail softly.
+        continue-on-error: true
+        run: node tools/verify-web.mjs

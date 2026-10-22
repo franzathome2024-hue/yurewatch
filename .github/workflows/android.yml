@@ -1,0 +1,83 @@
+name: android
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to attach the APK to a release
+
+jobs:
+  apk:
+    name: build APK
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        # build-tools 35+ is required: 34.0.0's d8 crashes with an internal
+        # NullPointerException on anonymous inner classes.
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;35.0.0" "platform-tools"
+
+      - run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Build signed APK
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        run: bash tools/build-apk.sh --skip-web
+
+      - name: Record checksum
+        run: |
+          sha256sum build/yurewatch-*.apk | tee build/SHA256SUMS
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: yurewatch-apk
+          path: |
+            build/yurewatch-*.apk
+            build/SHA256SUMS
+          if-no-files-found: error
+
+      - name: Attach APK to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/yurewatch-*.apk
+            build/SHA256SUMS
+          body: |
+            YureWatch ${{ github.ref_name }} — Japan earthquake / EEW viewer.
+
+            **This APK is signed with an ephemeral CI key** (generated at build
+            time, not stored). It installs and runs, but it cannot be updated
+            over an installation signed with a different key, and it is not a
+            Play Store artefact.
+
+            Informational viewer only. Not an earthquake prediction or detection
+            system, and not a substitute for JMA announcements or local
+            authority instructions.
+
+            See the repository README for build instructions, data sources and
+            limitations.
+          fail_on_unmatched_files: true

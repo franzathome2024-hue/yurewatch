@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <meta name="theme-color" content="#070c12" />
+    <meta
+      name="description"
+      content="日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図上で確認できる情報閲覧アプリ。気象庁の情報を公開API経由で受信します。地震の予測や独自検出は行いません。"
+    />
+    <meta name="color-scheme" content="dark" />
+    <title>YureWatch — 日本 地震・緊急地震速報ビューア</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d141d'/%3E%3Cpath d='M8 34h10l4-12 6 24 6-18 4 6h18' fill='none' stroke='%23ffd23f' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      /* Paint the shell before the bundle executes: no white flash on launch. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #070c12;
+        color: #e9eff7;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        gap: 12px;
+        font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+        font-size: 12px;
+        color: #778da3;
+        letter-spacing: 0.08em;
+      }
+      #boot .dot {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #ff3b4e, #ff8a3d 55%, #ffd23f);
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: scale(0.94);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="boot" aria-hidden="true">
+      <div class="dot"></div>
+      <div>YureWatch</div>
+    </div>
+    <noscript>
+      <p style="padding: 24px; font-family: sans-serif">
+        YureWatch は JavaScript が必要です。ブラウザの設定で有効にしてください。
+      </p>
+    </noscript>
+    <!-- Loaded at the end of <body>: the single-file Android build inlines this
+         as a classic script, so it must run after the document exists. -->
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

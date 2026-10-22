@@ -1,0 +1,48 @@
+# --- build output -------------------------------------------------------
+dist/
+build/
+*.apk
+*.aab
+*.class
+
+# Android asset copied from dist/ at build time (regenerate: npm run build)
+android/app/assets/index.html
+
+# --- dependencies -------------------------------------------------------
+node_modules/
+.pnpm-store/
+.yarn/
+
+# --- secrets & local config --------------------------------------------
+# Never commit signing material, API keys or local overrides.
+android/keystore/
+*.jks
+*.keystore
+*.p12
+*.pem
+.env
+.env.*
+!.env.example
+secrets.json
+local.properties
+config.local.*
+
+# --- generated / cached -------------------------------------------------
+scripts/.naturalearth/
+coverage/
+.vite/
+.cache/
+*.log
+.DS_Store
+Thumbs.db
+
+# --- editors ------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+*.swp
+
+# The web bundle is built into android/app/assets/index.html; only the
+# explanatory README in that folder is tracked.
+android/app/assets/index.html
