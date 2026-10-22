@@ -21,6 +21,12 @@ const quakeEvent = (() => {
   return r.value;
 })();
 
+const eewAlert = (raw: unknown) => {
+  const r = parseEew(raw, T);
+  if (!r.ok) throw new Error(r.reason);
+  return r.value;
+};
+
 function boot(patch: (s: AppState) => AppState = (s) => s): { store: Store; app: App; state: AppState } {
   const store = new Store(patch(initialState('live', T)));
   const app = new App(store, {
@@ -59,6 +65,32 @@ describe('application shell', () => {
     expect(app.root.querySelector('.side')).not.toBeNull();
     // The map is not a decorative placeholder: it owns a canvas.
     expect(app.root.querySelector('.map__canvas')).not.toBeNull();
+  });
+
+  it('collapses and re-expands the docked sidebar from its tab-bar toggle', () => {
+    const { app } = boot();
+    const toggle = app.root.querySelector<HTMLButtonElement>('.sideToggle');
+    expect(toggle).not.toBeNull();
+    expect(app.root.dataset.side).toBe('open');
+    expect(toggle!.getAttribute('aria-expanded')).toBe('true');
+
+    toggle!.click();
+    expect(app.root.dataset.side).toBe('collapsed');
+    expect(toggle!.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle!.getAttribute('aria-label')).toBe('サイドバーを開く');
+
+    toggle!.click();
+    expect(app.root.dataset.side).toBe('open');
+    expect(toggle!.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('reveals the sidebar again when a view is requested while collapsed', () => {
+    const { app } = boot();
+    app.root.querySelector<HTMLButtonElement>('.sideToggle')!.click();
+    expect(app.root.dataset.side).toBe('collapsed');
+    app.setView('detail');
+    expect(app.root.dataset.side).toBe('open');
+    expect(app.root.dataset.view).toBe('detail');
   });
 
   it('exposes the three sidebar views and switches between them', () => {
@@ -339,5 +371,54 @@ describe('info panel', () => {
     const panel = mount();
     expect(panel.el.textContent).toContain('P2P地震情報');
     expect(panel.el.textContent).toContain('最終成功');
+  });
+
+  it('offers explicit sound and voice tests and reports their outcome inline', () => {
+    const onTestSound = vi.fn(() => '音声の状態: running');
+    const onTestVoice = vi.fn(() => 'テスト読み上げを送信しました');
+    const panel = mount({ onTestSound, onTestVoice });
+    const buttons = Array.from(panel.el.querySelectorAll<HTMLButtonElement>('.segBtn--test'));
+    expect(buttons.map((b) => b.textContent)).toEqual(['音声テスト', '読み上げテスト']);
+    buttons[0]?.click();
+    expect(onTestSound).toHaveBeenCalledTimes(1);
+    expect(panel.el.textContent).toContain('音声の状態: running');
+    buttons[1]?.click();
+    expect(onTestVoice).toHaveBeenCalledTimes(1);
+    expect(panel.el.textContent).toContain('テスト読み上げを送信しました');
+  });
+});
+
+describe('EEW monitor window', () => {
+  it('sits at the map top-right in standby with honest placeholders; legend anchors bottom-left', () => {
+    const { app } = boot();
+    const win = app.root.querySelector('.eewWin');
+    expect(win).not.toBeNull();
+    expect(win?.getAttribute('data-map-anchor')).toBe('top-right');
+    expect(win?.getAttribute('data-state')).toBe('standby');
+    expect(win?.textContent).toContain('待機中');
+    // Unavailable values are dashes, never invented numbers.
+    expect(win?.textContent).toContain('---');
+    expect(app.root.querySelector('.legend')?.getAttribute('data-map-anchor')).toBe('bottom-left');
+  });
+
+  it('shows warning state, predicted intensity and source arrival only', () => {
+    const { app, store } = boot();
+    store.dispatch({ type: 'batch', events: [], eews: [eewAlert(eewWarning)], tsunami: null, at: T, rejected: 0 });
+    app.update(store.get());
+    const win = app.root.querySelector('.eewWin');
+    expect(win?.getAttribute('data-state')).toBe('warning');
+    expect(win?.textContent).toContain('警報');
+    expect(win?.textContent).toContain('茨城県南部');
+    expect(win?.textContent).toContain('M6.1');
+    // The fixture's earliest source-supplied arrival renders as a clock time.
+    expect(win?.textContent).toContain('07:45');
+  });
+
+  it('labels test bulletins in the window', () => {
+    const { app, store } = boot();
+    store.dispatch({ type: 'batch', events: [], eews: [eewAlert({ ...eewWarning, test: true })], tsunami: null, at: T, rejected: 0 });
+    app.update(store.get());
+    const win = app.root.querySelector('.eewWin');
+    expect(win?.textContent).toContain('訓練/試験');
   });
 });

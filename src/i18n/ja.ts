@@ -65,6 +65,20 @@ export const ja = {
   'age.unknownTime': '時刻不明',
   'age.received': '{age}受信',
 
+  /* ---------------- EEW monitor window ---------------- */
+  'eew.title': '緊急地震速報モニター',
+  'eew.state.standby': '待機中',
+  'eew.state.forecast': '予報',
+  'eew.state.warning': '警報',
+  'eew.state.revised': '更新',
+  'eew.state.cancelled': '取消',
+  'eew.state.unavailable': '状態不明',
+  'eew.monitoring': '監視中',
+  'eew.feed.offline': 'フィード接続なし',
+  'eew.feed.stale': 'フィード遅延',
+  'eew.feed.connecting': 'フィード接続中',
+  'eew.tsunami.cancelled': '津波情報は解除',
+
   /* ---------------- EEW panel ---------------- */
   'alert.kicker': '緊急地震速報',
   'alert.badge.waiting': '待機中',
@@ -327,6 +341,8 @@ export const ja = {
   'sheet.peekEmpty': '地震情報がまだありません',
   'sheet.expand': 'パネルを広げる',
   'sheet.collapse': 'パネルを縮める',
+  'side.collapse': 'サイドバーを閉じる',
+  'side.expand': 'サイドバーを開く',
   'sheet.peekSummary': '{name} {magnitude}・{time}',
 
   'list.title': '最近の地震',
@@ -341,6 +357,10 @@ export const ja = {
   'set.soundOn': 'ON',
   'set.soundOff': 'OFF',
   'set.soundHelp': '警報を受信したときのみ鳴ります。デモでは初期状態で鳴りません。',
+  'set.testSound': '音声テスト',
+  'set.testVoice': '読み上げテスト',
+  'set.testSoundResult': '音声の状態: {state}',
+  'set.testVoiceOk': 'テスト読み上げを送信しました',
   'set.sectionSource': 'データ',
   'set.sourceHelp': 'ライブ接続は P2P地震情報 JSON API v2（気象庁の情報を中継）を使用します。',
   /* v0.2.1 spoken alerts */

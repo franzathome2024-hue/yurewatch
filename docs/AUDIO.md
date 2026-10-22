@@ -84,8 +84,19 @@ stays silent. The app does not claim otherwise.
 | --- | --- | --- |
 | Dedupe, priority, cancellation wording, test/simulated gating, missing-field omission, EN/JA localisation | `tests/announce.test.ts` (10 tests, real p2pquake fixtures through the real parser) | pass |
 | Tone synthesis | Not asserted in tests (WebAudio is not implemented in jsdom); the code path is exercised in `tools/verify-web.mjs` indirectly by the alert scenarios | not measured |
+| Test sound button reaches `running` | Real mouse click on 音声テスト in headless Chromium (v0.5.0 evidence probe): the result line reported `音声の状態: running` — the context is created/resumed inside the click gesture and the observed state is shown, never assumed | pass (browser) |
+| Test voice button reports the engine verdict | Same probe: headless Chromium has no TTS voices, so the result honestly stayed at 音声エンジンを確認しています… (pending) instead of claiming success | pass (browser, pending state) |
 | **Audible output on a device** | **Not performed** — no emulator (`/dev/kvm` absent) and no physical device in this environment | **unverified** |
 | Japanese voice availability | Not verified on a device; the code asks the engine at runtime and degrades to a visible message | **unverified** |
+
+Since v0.5.0 the info panel carries explicit 音声テスト / 読み上げテスト
+buttons beside the sound and voice toggles. Each press is the user gesture
+autoplay policies require; the sound test bypasses the alert-sound
+preference (the press is the consent) but never the platform, and reports
+the AudioContext state observed (`running` / `suspended` / `unsupported`).
+The voice test speaks the preview sentence even while alert voice is off
+and reports the engine's verdict. Neither test changes a preference, and
+the two preferences stay independent and take effect immediately.
 
 Anyone testing on hardware should check: (1) the toggle in Settings → 音声読み上げ
 turns on and speaks the preview sentence; (2) a real EEW (or `?demo=warning&demoAudio=1`)

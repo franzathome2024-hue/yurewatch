@@ -72,6 +72,18 @@ export const en: Record<MessageKey, string> = {
   'age.received': 'received {age}',
 
   /* ---------------- EEW panel ---------------- */
+  'eew.title': 'EEW monitor',
+  'eew.state.standby': 'STANDBY',
+  'eew.state.forecast': 'FORECAST',
+  'eew.state.warning': 'WARNING',
+  'eew.state.revised': 'REVISED',
+  'eew.state.cancelled': 'CANCELLED',
+  'eew.state.unavailable': 'UNAVAILABLE',
+  'eew.monitoring': 'Monitoring',
+  'eew.feed.offline': 'Feed offline',
+  'eew.feed.stale': 'Feed stale',
+  'eew.feed.connecting': 'Connecting',
+  'eew.tsunami.cancelled': 'Tsunami info cancelled',
   'alert.kicker': 'Earthquake Early Warning',
   'alert.badge.waiting': 'Standing by',
   'alert.badge.unknown': 'Status unknown',
@@ -332,6 +344,8 @@ export const en: Record<MessageKey, string> = {
   'sheet.peekEmpty': 'No earthquake information yet',
   'sheet.expand': 'Expand panel',
   'sheet.collapse': 'Collapse panel',
+  'side.collapse': 'Collapse sidebar',
+  'side.expand': 'Expand sidebar',
   'sheet.peekSummary': '{name} {magnitude} · {time}',
 
   'list.title': 'Recent earthquakes',
@@ -346,6 +360,10 @@ export const en: Record<MessageKey, string> = {
   'set.soundOn': 'ON',
   'set.soundOff': 'OFF',
   'set.soundHelp': 'Sounds only when a warning arrives. Silent for demos unless enabled.',
+  'set.testSound': 'Test sound',
+  'set.testVoice': 'Test voice',
+  'set.testSoundResult': 'AudioContext: {state}',
+  'set.testVoiceOk': 'Test speech sent',
   'set.sectionSource': 'Data',
   'set.sourceHelp': 'Live data comes from the P2P Earthquake Information JSON API v2 (relaying JMA information).',
   /* v0.2.1 spoken alerts */

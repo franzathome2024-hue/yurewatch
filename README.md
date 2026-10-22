@@ -1,4 +1,4 @@
-# YureWatch — Japan Earthquake & EEW Viewer (v0.4.0)
+# YureWatch — Japan Earthquake & EEW Viewer (v0.5.0)
 
 A dark, map-first viewer for **Japan's earthquake information, Earthquake Early
 Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installable
@@ -155,12 +155,12 @@ is reset by a reinstall.
 To build it yourself instead:
 
 ```bash
-# Build (produces build/yurewatch-0.4.0.apk)
+# Build (produces build/yurewatch-0.5.0.apk)
 npm ci
 bash tools/build-apk.sh
 
 # Install on a connected device
-adb install -r build/yurewatch-0.4.0.apk
+adb install -r build/yurewatch-0.5.0.apk
 ```
 
 The app opens directly into the map. It does **not** start a local server, ask

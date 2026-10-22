@@ -39,8 +39,8 @@ export class AlertAudio {
   }
 
   /** kind: `warning` = urgent double tone, `info` = single soft tone. */
-  play(kind: 'warning' | 'info'): void {
-    if (!this.enabled()) return;
+  play(kind: 'warning' | 'info', force = false): void {
+    if (!force && !this.enabled()) return;
     const ctx = this.ensure();
     if (!ctx || ctx.state === 'suspended') return;
     const now = ctx.currentTime;
@@ -68,5 +68,34 @@ export class AlertAudio {
   /** Called by the app when preference toggles, to satisfy autoplay policies. */
   prime(): void {
     this.ensure();
+  }
+
+  /** AudioContext state for diagnostics ('not-created' until first unlock). */
+  contextState(): string {
+    return this.ctx?.state ?? 'not-created';
+  }
+
+  /**
+   * User-gesture test tone. The button press is itself the consent, so the
+   * alert-enabled preference is bypassed — but the platform is not: a
+   * suspended context is resumed explicitly and the state observed *before*
+   * the attempt is returned, so the UI can report honestly (e.g. a WebView
+   * that keeps the context suspended) instead of claiming success. The tone
+   * itself is the same synthesized `info` chime alerts use — no audio files.
+   */
+  testTone(): string {
+    // This runs inside the test button's click handler — itself a user
+    // gesture — so it counts as the unlock even where no earlier pointer or
+    // key event reached the window listeners (notably some WebViews).
+    this.unlocked = true;
+    const ctx = this.ensure();
+    if (!ctx) return 'unsupported';
+    const observed = ctx.state;
+    if (observed === 'suspended') {
+      void ctx.resume().then(() => this.play('info', true)).catch(() => undefined);
+    } else {
+      this.play('info', true);
+    }
+    return observed;
   }
 }

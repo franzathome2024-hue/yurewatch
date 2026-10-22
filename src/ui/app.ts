@@ -7,6 +7,7 @@ import { getLocaleVersion, t } from '../i18n';
 import { ingestEvents, intensityByPrefecture } from '../state/events';
 import { effectiveFreshness, freshnessLabel, selectEvent, type AppState, type Store } from '../state/store';
 import { createAlertPanel } from './alertPanel';
+import { createEewWindow } from './eewWindow';
 import { createDetails } from './details';
 import { badge, el } from './dom';
 import { createEventList } from './eventList';
@@ -25,6 +26,10 @@ export interface AppHandlers {
   onToggleTsunamiLayer: () => void;
   onToggleVoice?: () => void;
   describeVoice?: () => string;
+  /** Explicit user-gesture audio test; returns a localised diagnostic line. */
+  onTestSound?: () => string;
+  /** Explicit user-gesture speech test; returns a localised diagnostic line. */
+  onTestVoice?: () => string;
   onRecenter: () => void;
   onZoom: (factor: number) => void;
   /** Switch the map between mainland and full-archipelago framing. */
@@ -48,6 +53,7 @@ export class App {
   readonly root: HTMLElement;
   private header: ReturnType<typeof createHeader>;
   private alertPanel = createAlertPanel();
+  private eewWindow = createEewWindow();
   private list: ReturnType<typeof createEventList>;
   private detail: ReturnType<typeof createDetails>;
   private info: ReturnType<typeof createInfoPanel>;
@@ -61,6 +67,9 @@ export class App {
   private sideTabs = new Map<SideView, HTMLButtonElement>();
   private sidePanels = new Map<SideView, HTMLElement>();
   private sheetToggle: HTMLButtonElement;
+  /** Collapse control for the docked sidebar (≥901 px; the sheet handle covers smaller layouts). */
+  private sideToggle: HTMLButtonElement;
+  private sideCollapsed = false;
   private peekText: HTMLElement;
   private peekHint: HTMLElement;
   private statusSource = el('span', { class: 'statusStrip__source' });
@@ -92,6 +101,8 @@ export class App {
       onToggleTsunamiLayer: handlers.onToggleTsunamiLayer,
       onToggleVoice: handlers.onToggleVoice,
       describeVoice: handlers.describeVoice,
+      onTestSound: handlers.onTestSound,
+      onTestVoice: handlers.onTestVoice,
       onDemoStart: handlers.onDemoStart,
       onDemoStop: handlers.onDemoStop,
       onExport: handlers.onExportState,
@@ -144,11 +155,17 @@ export class App {
       this.simBannerText,
     );
 
-    this.legend.el.dataset.mapAnchor = 'top-right';
+    // The EEW monitor owns the map's top-right; the legend moves to the
+    // bottom-left (above the canvas scale bar), JQuake-style. Both carry
+    // data-map-anchor so EEW camera framing reserves space for whichever
+    // corner each overlay actually occupies.
+    this.eewWindow.el.dataset.mapAnchor = 'top-right';
+    this.legend.el.dataset.mapAnchor = 'bottom-left';
 
     const mapPane = el('section', { class: 'mapPane' },
       canvas,
       this.simBanner,
+      this.eewWindow.el,
       this.legend.el,
       controls,
       this.mapFallback,
@@ -238,6 +255,22 @@ export class App {
       tabs.appendChild(button);
     }
 
+    // Sidebar collapse (docked layouts only; CSS hides this ≤900 px where
+    // the bottom-sheet handle already provides the same affordance). Lives
+    // in the existing tab bar so it is always in the same place, collapsed
+    // or not, and keeps keyboard focus when toggled.
+    this.sideToggle = el('button', {
+      class: 'sideToggle',
+      type: 'button',
+      'aria-expanded': 'true',
+      'aria-label': t('side.collapse'),
+    },
+      el('span', { class: 'sideToggle__chevron', 'aria-hidden': 'true', html:
+        '<svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }),
+    );
+    this.sideToggle.addEventListener('click', () => this.setSideCollapsed(!this.sideCollapsed));
+    tabs.appendChild(this.sideToggle);
+
     this.peekText = el('span', { class: 'sheet__peekText' });
     this.peekHint = el('span', { class: 'sheet__peekHint' });
     this.sheetToggle = el('button', {
@@ -280,7 +313,7 @@ export class App {
 
     const work = el('main', { class: 'work' }, mapPane, this.side);
 
-    this.root = el('div', { class: 'app', 'data-view': 'list', 'data-sheet': 'peek' },
+    this.root = el('div', { class: 'app', 'data-view': 'list', 'data-sheet': 'peek', 'data-side': 'open' },
       this.header.el,
       statusStrip,
       el('div', { class: 'alertSlot' }, this.alertPanel.el),
@@ -313,7 +346,18 @@ export class App {
     return this.info.el;
   }
 
+  /** Collapse/expand the docked sidebar. The map resizes itself (ResizeObserver, centre-preserving). */
+  private setSideCollapsed(collapsed: boolean): void {
+    this.sideCollapsed = collapsed;
+    this.root.dataset.side = collapsed ? 'collapsed' : 'open';
+    this.sideToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    this.sideToggle.setAttribute('aria-label', collapsed ? t('side.expand') : t('side.collapse'));
+  }
+
   setView(view: SideView): void {
+    // Navigating to a panel (tab, event selection, info) always reveals it:
+    // a collapsed sidebar must never swallow the thing the user asked for.
+    if (this.sideCollapsed) this.setSideCollapsed(false);
     this.view = view;
     this.root.dataset.view = view;
     for (const [id, button] of this.sideTabs) {
@@ -343,6 +387,7 @@ export class App {
       this.refreshFrameButton();
     }
     this.side.setAttribute('aria-label', t('sheet.label'));
+    this.sideToggle.setAttribute('aria-label', this.sideCollapsed ? t('side.expand') : t('side.collapse'));
     for (const [view, button] of this.sideTabs) {
       button.textContent = view === 'list' ? t('list.title') : view === 'detail' ? t('nav.detail') : t('nav.info');
     }
@@ -350,6 +395,7 @@ export class App {
     /* ---- components -------------------------------------------------- */
     this.header.update(state);
     this.alertPanel.update(state);
+    this.eewWindow.update(state);
     this.list.update(state);
     this.detail.update(state);
     this.info.update(state);

@@ -30,9 +30,15 @@ squeezed.
 └──────────────────────────────────────────┴────────────────────┘
 ```
 
-- **Desktop (≥ 900 px)**: map and a 372 px sidebar (420 px ≥ 1600 px) side by
-  side. The map gets 66–69 % of the work area at 1280×800 and 1440×900; the
-  sidebar is a fixed instrument column, not a third dashboard column.
+- **Desktop (≥ 900 px)**: map and a 372 px sidebar (420 px ≥ 1600 px, 320 px
+  at 901–1200 px) side by side. The map gets 66–69 % of the work area at
+  1280×800 and 1440×900; the sidebar is a fixed instrument column, not a
+  third dashboard column. A chevron toggle at the end of the tab bar
+  collapses it to a 44 px rail (the toggle stays in place, `aria-expanded`
+  tracks it), giving the map up to ~92–94 % of the width; choosing any view
+  — tab, event, info — re-expands it. At 1024×768 collapsing widens the map
+  from 668 px to 944 px (measured). Below 901 px the toggle is hidden: the
+  bottom-sheet handle already provides the same affordance there.
 - **Phones (< 900 px)**: the map is the whole workspace and the sidebar becomes
   a bottom sheet with two states — *peek* (64 px summary line) and *full*
   (56 vh). Default is peek, so the map is on screen at launch.
@@ -176,11 +182,68 @@ Reproduce: `npm run qa:ui` prints the 60-state matrix, and
 git worktree, captures both screenshot sets and writes
 `docs/qa/ui-comparison.png`.
 
+## EEW monitor window, camera framing, and audio tests (v0.5.0)
+
+A JQuake-inspired pass, kept deliberately small: one new component, one new
+pure helper, and wiring through the existing App/handlers:
+
+- **EEW monitor window** (`src/ui/eewWindow.ts`, mounted in `src/ui/app.ts`)
+  is the compact always-visible EEW readout at the map's **top-right**; the
+  legend moved to the **bottom-left**, above the canvas scale bar, and opens
+  upward. Both overlays keep `data-map-anchor` tags so camera framing
+  reserves the corners they actually occupy. The window distinguishes
+  待機中 (standby, with 監視中 / フィード遅延 / フィード接続なし / 接続中） /
+  予報 / 警報 / 更新 / 取消 / 状態不明， badges 訓練/試験 and SIM bulletins,
+  and shows, in priority order: earliest **source-supplied** arrival
+  estimate with a live countdown (`nextArrival`, the same helper and
+  phrasing as the banner), max predicted intensity, epicentre,
+  magnitude/depth, serial + issue time, and the current tsunami grade.
+  Anything the source did not supply renders as `---` — never 0 and never
+  estimated. Raw Rt noise is never shown here; this window speaks only
+  official JMA EEW values. The wide banner remains the detailed transient
+  announcement; the window is not an aria-live region (it re-renders on the
+  1 Hz countdown tick).
+- **EEW camera framing** (`eewFocusKey` in `src/state/alert.ts`, wired in
+  `src/main.ts`): the map centres **once** per distinct event — or when the
+  epicentre moves ≥ ~0.1° — via `MapView.focusOn`, now a bounded ~380 ms
+  ease that is instant under reduced-motion and is cancelled by any pan,
+  wheel, zoom, recenter or profile switch. Test bulletins, cancellations
+  and missing/fabricated coordinates never move the camera; small serial
+  revisions never re-frame; manual navigation is never overridden. The
+  labelled 全国 (nationwide) map control restores the default full-Japan
+  framing (including the outlying islands of the active profile) at every
+  viewport, and resize/rotation keep the visible centre via the existing
+  `preserveVisible` path. Map QA's alert-strip scenario therefore measures
+  the strip-resize refit after pressing that reset.
+- **Compact forms**: below 900 px wide the window narrows (208 px, then
+  188 px below 560 px); at ≤560 px tall (phone landscape) it shows only
+  state, arrival, intensity and epicentre. At ≤560 px wide the demo
+  SIMULATION banner keeps its tag but drops its explanatory sentence (the
+  header DEMO chip carries the same marking), so banner and window never
+  squeeze each other into unreadable columns. Verified by measurement at
+  1440×900, 1280×800, 1024×768, 800×1280, 768×1024, 393×873, 360×800,
+  915×412 and 844×390: no overlap with the legend or map controls and no
+  horizontal overflow in any of them (screenshots: task evidence set).
+- **Sound/voice tests** （設定 in the info panel): 音声テスト plays the
+  synthesized info tone through `AlertAudio.testTone()` and reports the
+  observed AudioContext state (`running` after a real click in headless
+  Chromium); 読み上げテスト speaks the preview via `Speech.speak` and
+  reports the engine's verdict — including the honest "no Japanese voice"
+  and "confirming…" (pending) states instead of failing silently. The
+  tests are explicit gestures, work while the alert preferences are off,
+  and never change those preferences. What remains unverified is listed in
+  `docs/AUDIO.md`: no background/locked-screen or audio-focus behaviour is
+  claimed, and speech on a real device depends on its installed voices.
+
+Sidebar collapse (≥901 px, 44 px rail) from the same release is described
+with the layout above; below 901 px the bottom sheet is unchanged.
+
 ## Where the code lives
 
 | Concern | File |
 | --- | --- |
 | Shell, view/sheet state, map wiring | `src/ui/app.ts` |
+| EEW monitor window | `src/ui/eewWindow.ts` |
 | Header (brand, connection, clock, language, info) | `src/ui/header.ts` |
 | Alert strip / banner | `src/ui/alertPanel.ts` |
 | Recent earthquakes list | `src/ui/eventList.ts` |

@@ -184,3 +184,26 @@ export function strongestAreas(alert: EewAlert | null, limit = 4) {
   const max = alert.maxScaleTo;
   return alert.areas.filter((a) => a.scaleTo >= Math.max(0, max - 5) || a.scaleTo === max).slice(0, limit);
 }
+
+/**
+ * Identity under which the map may auto-frame an EEW, or null when it must
+ * not move the camera at all.
+ *
+ * The key changes only when the *event* changes or its epicentre moves by a
+ * meaningful amount (>= ~0.1° once rounded), so routine serial revisions of
+ * the same bulletin never yank the camera away from a user who is looking
+ * somewhere deliberately. Test/drill bulletins never move the camera (their
+ * coordinates are not real), and neither do cancellations or alerts whose
+ * epicentre is missing — the map must never frame on absent coordinates.
+ * Simulated bulletins do qualify: a simulation is the supported way to
+ * rehearse exactly this behaviour, and it is badged as simulated on screen.
+ */
+export function eewFocusKey(alert: EewAlert | null): string | null {
+  if (!alert) return null;
+  if (alert.isTest || alert.state === 'cancelled') return null;
+  const epi = alert.epicenter;
+  if (!epi) return null;
+  if (!Number.isFinite(epi.longitude) || !Number.isFinite(epi.latitude)) return null;
+  if (epi.longitude === 0 && epi.latitude === 0) return null;
+  return `${alert.eventId}@${epi.longitude.toFixed(1)},${epi.latitude.toFixed(1)}`;
+}

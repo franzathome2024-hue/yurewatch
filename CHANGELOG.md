@@ -1,9 +1,40 @@
 # Changelog
 
-## Unreleased
+## v0.5.0 — 2026-10-22
 
 ### Added
 
+- **EEW monitor window** (JQuake-inspired): a compact, always-visible EEW
+  readout anchored to the map's top-right (the legend moved to the
+  bottom-left). It distinguishes STANDBY / FORECAST / WARNING / REVISED /
+  CANCELLED, badges test and simulated bulletins, and shows — in priority
+  order — the earliest source-supplied arrival estimate with a live
+  countdown, max predicted intensity, epicentre, magnitude/depth, revision
+  serial and the current tsunami bulletin grade. Values the source did not
+  supply render as `---`; nothing is estimated or invented. Feed
+  offline/stale states are labelled on the standby window.
+- **EEW camera framing**: a qualifying EEW (new event or a meaningful
+  epicentre move; never a test bulletin, cancellation, or missing
+  coordinates) centres the map once with a bounded ease that honours
+  reduced-motion. Serial revisions do not re-frame, manual pan/zoom is
+  never overridden, and the labelled nationwide reset restores the full
+  Japan view at every size.
+- **Explicit sound/voice tests** in 設定 (Settings): dedicated
+  音声テスト / Test sound and 読み上げテスト / Test voice buttons beside
+  the existing toggles. The sound test reports the observed AudioContext
+  state (e.g. `running` after the gesture); the voice test reports the
+  speech engine's verdict (including "no Japanese voice") instead of
+  failing silently. Synthesized tones only; preferences remain independent
+  and take effect immediately.
+- **Collapsible sidebar** (desktop/tablet landscape): the sidebar collapses
+  to a 44 px rail, returning the width to the map; choosing a tab reopens
+  it. Small screens keep the bottom-sheet behaviour.
+
+### Changed
+
+- Map QA's alert-strip scenario now measures the strip-resize refit from
+  the nationwide view restored by the reset button, because a qualifying
+  warning legitimately centres the epicentre first (EEW framing above).
 - **Public website** (Milestone 4): landing page and the browser viewer at
   <https://franzathome2024-hue.github.io/yurewatch/viewer/>, deployed by
   `.github/workflows/pages.yml` from the same single-file build as the APK.

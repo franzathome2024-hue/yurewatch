@@ -244,6 +244,7 @@ export class MapView {
 
   /** Switch between mainland and full-archipelago framing. */
   setProfile(profile: FramingProfile): void {
+    this.cancelFocusAnim();
     this.profile = profile;
     this.userAdjusted = false;
     this.limits = this.zoomLimits();
@@ -263,6 +264,7 @@ export class MapView {
   }
 
   recenter(): void {
+    this.cancelFocusAnim();
     this.userAdjusted = false;
     this.camera = this.fitProfile();
     this.dirty = true;
@@ -271,6 +273,7 @@ export class MapView {
   }
 
   zoomBy(factor: number): void {
+    this.cancelFocusAnim();
     this.userAdjusted = true;
     const anchor = { x: this.viewport.width / 2, y: this.viewport.height / 2 };
     this.camera = zoomAt(this.camera, this.viewport, anchor, factor, this.limits);
@@ -279,16 +282,61 @@ export class MapView {
     this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
   }
 
-  /** Centre on a geographic point without changing zoom much. */
+  /**
+   * Centre on a geographic point without changing zoom much.
+   *
+   * The move is a bounded ease (~380 ms) rather than a teleport, and is
+   * instant when reduced motion is preferred (or animation is unavailable).
+   * Any deliberate gesture — pan, wheel, zoom buttons, recenter, profile
+   * switch — cancels it immediately, so an in-flight auto-framing can never
+   * fight the user for the camera.
+   */
   focusOn(lon: number, lat: number, minScale?: number): void {
     this.userAdjusted = true;
     const x = (lon + 180) / 360;
     const rad = (Math.max(-85, Math.min(85, lat)) * Math.PI) / 180;
     const y = 0.5 - Math.log(Math.tan(Math.PI / 4 + rad / 2)) / (2 * Math.PI);
     const scale = Math.max(this.camera.scale, minScale ?? this.limits.minScale * 2.2);
-    this.camera = clampCamera({ cx: x, cy: y, scale }, this.viewport, this.limits, this.focusBounds);
-    this.dirty = true;
-    this.requestFrame();
+    const target = clampCamera({ cx: x, cy: y, scale }, this.viewport, this.limits, this.focusBounds);
+    this.cancelFocusAnim();
+    if (this.reduceMotion || typeof requestAnimationFrame !== 'function') {
+      this.camera = target;
+      this.dirty = true;
+      this.requestFrame();
+      return;
+    }
+    const from = { ...this.camera };
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const DURATION_MS = 380;
+    const step = (now: number): void => {
+      if (!this.focusAnim) return;
+      const k = Math.min(1, (now - startedAt) / DURATION_MS);
+      const e = 1 - Math.pow(1 - k, 3);
+      this.camera = clampCamera({
+        cx: from.cx + (target.cx - from.cx) * e,
+        cy: from.cy + (target.cy - from.cy) * e,
+        scale: Math.exp(Math.log(from.scale) + (Math.log(target.scale) - Math.log(from.scale)) * e),
+      }, this.viewport, this.limits, this.focusBounds);
+      this.dirty = true;
+      this.requestFrame();
+      if (k < 1) {
+        this.focusAnim.raf = requestAnimationFrame(step);
+      } else {
+        this.focusAnim = null;
+        this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
+      }
+    };
+    this.focusAnim = { raf: requestAnimationFrame(step) };
+    this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
+  }
+
+  /** An in-flight focus animation, cancelled by any deliberate gesture. */
+  private focusAnim: { raf: number } | null = null;
+
+  private cancelFocusAnim(): void {
+    if (!this.focusAnim) return;
+    if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.focusAnim.raf);
+    this.focusAnim = null;
   }
 
   /** Diagnostics for QA: what the camera is doing and where Japan landed. */
@@ -416,6 +464,7 @@ export class MapView {
   }
 
   private onPointerDown = (e: PointerEvent): void => {
+    this.cancelFocusAnim();
     this.canvas.setPointerCapture?.(e.pointerId);
     this.pointers.set(e.pointerId, this.localPoint(e));
     this.dragMoved = false;
@@ -482,6 +531,7 @@ export class MapView {
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    this.cancelFocusAnim();
     this.userAdjusted = true;
     const factor = Math.exp(-e.deltaY * 0.0016);
     this.camera = zoomAt(this.camera, this.viewport, this.localPoint(e), factor, this.limits);

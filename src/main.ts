@@ -5,6 +5,7 @@ import { detectTransport } from './net/transport';
 import { LiveFeed, type FeedEvent } from './net/liveFeed';
 import { Store, initialState, type AppMode, type AppState } from './state/store';
 import { loadHistory, saveHistory } from './state/historyCache';
+import { eewFocusKey } from './state/alert';
 import { initLocale, normalizeLocale, onLocaleChange, setLocale, t } from './i18n';
 import { App } from './ui/app';
 import { Speech } from './ui/speech';
@@ -102,6 +103,14 @@ const liveFeed = new LiveFeed({ transport: detectTransport() });
 
 let activeFeed: 'live' | 'demo' = mode;
 
+/**
+ * Identity of the last EEW the camera auto-framed. Auto-framing fires once
+ * per distinct event (or meaningful epicentre move) — never per revision —
+ * and any manual pan/zoom afterwards is left alone until the nationwide
+ * reset button returns the camera. See `eewFocusKey` for what qualifies.
+ */
+let lastEewFocusKey: string | null = null;
+
 function handleFeedEvent(event: FeedEvent): void {
   if (event.type === 'connection') {
     if (activeFeed === 'demo' && event.state !== 'live') {
@@ -130,6 +139,14 @@ function handleFeedEvent(event: FeedEvent): void {
   if (activeFeed === 'live') saveHistory(store.get().events, event.at);
   const after = store.get().alert;
 
+  // EEW camera framing: a new qualifying event (or a meaningful epicentre
+  // move) centres the map once; revisions of the same bulletin do not.
+  const focusKey = eewFocusKey(after);
+  if (focusKey && focusKey !== lastEewFocusKey && after?.epicenter) {
+    lastEewFocusKey = focusKey;
+    ui?.focusMapOn(after.epicenter.longitude, after.epicenter.latitude);
+  }
+
   // Audio policy: only for genuine warnings, never for tests, never for
   // simulated alerts unless the developer opted in.
   const isNewRevision = after && (!before || before.eventId !== after.eventId || before.serial !== after.serial);
@@ -154,6 +171,13 @@ function handleFeedEvent(event: FeedEvent): void {
 }
 
 let speechFailed: string | null = null;
+
+/** Localised, diagnosable explanation for a speech-engine failure. */
+function describeVoiceFailure(reason: string): string {
+  if (reason === 'no-voice') return t('voice.unavailable');
+  if (reason === 'pending') return t('voice.pending');
+  return t('voice.unsupported');
+}
 
 function announce(alert: EewAlert | null): void {
   const prefs = store.get().preferences;
@@ -263,6 +287,19 @@ ui = new App(store, {
     const next = !store.get().preferences.soundEnabled;
     store.dispatch({ type: 'preferences', patch: { soundEnabled: next } });
     if (next) audio.prime();
+  },
+  onTestSound: () => t('set.testSoundResult', { state: audio.testTone() }),
+  onTestVoice: () => {
+    // A test press is an explicit user request, so it speaks even while the
+    // alert-voice preference is off — and reports the engine's verdict
+    // verbatim instead of failing silently.
+    const result = speech.speak(t('voice.previewText'));
+    if (!result.ok) {
+      speechFailed = result.reason ?? 'unsupported';
+      return describeVoiceFailure(speechFailed);
+    }
+    speechFailed = null;
+    return t('set.testVoiceOk');
   },
   onRecenter: () => ui?.recenterMap(),
   onZoom: (factor) => ui?.zoomMap(factor),

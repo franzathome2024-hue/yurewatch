@@ -22,6 +22,10 @@ export function createInfoPanel(handlers: {
   onToggleVoice?: () => void;
   /** Localised one-line reason the voice cannot be used, or '' when it can. */
   describeVoice?: () => string;
+  /** Explicit user-gesture audio test; returns a localised diagnostic line. */
+  onTestSound?: () => string;
+  /** Explicit user-gesture speech test; returns a localised diagnostic line. */
+  onTestVoice?: () => string;
   onDemoStart: (id: string) => void;
   onDemoStop: () => void;
   onExport: () => void;
@@ -34,6 +38,7 @@ export function createInfoPanel(handlers: {
   let tsunamiButton: HTMLButtonElement | null = null;
   let voiceButton: HTMLButtonElement | null = null;
   let voiceNote: HTMLElement | null = null;
+  let testNote: HTMLElement | null = null;
   let langButtons = new Map<Locale, HTMLButtonElement>();
   const getState = (): AppState => stateRef ?? initialState();
 
@@ -156,6 +161,19 @@ export function createInfoPanel(handlers: {
     voiceButton.addEventListener('click', () => handlers.onToggleVoice?.());
     voiceNote = el('span', { class: 'setRow__help' });
 
+    // Explicit, discoverable audio/speech tests. Each press is the user
+    // gesture autoplay policies require, and the outcome (context state /
+    // speech-engine verdict) is written under the rows — never silent.
+    testNote = el('span', { class: 'setRow__help', 'aria-live': 'polite' });
+    const testSoundButton = el('button', { class: 'segBtn segBtn--test', type: 'button', text: t('set.testSound') });
+    testSoundButton.addEventListener('click', () => {
+      if (testNote) testNote.textContent = handlers.onTestSound?.() ?? '';
+    });
+    const testVoiceButton = el('button', { class: 'segBtn segBtn--test', type: 'button', text: t('set.testVoice') });
+    testVoiceButton.addEventListener('click', () => {
+      if (testNote) testNote.textContent = handlers.onTestVoice?.() ?? '';
+    });
+
     tsunamiButton = el('button', { class: 'segBtn', type: 'button' });
     tsunamiButton.addEventListener('click', () => handlers.onToggleTsunamiLayer());
 
@@ -188,7 +206,7 @@ export function createInfoPanel(handlers: {
             el('span', { class: 'setRow__label', text: t('set.sound') }),
             el('span', { class: 'setRow__help', text: t('set.soundHelp') }),
           ),
-          soundButton,
+          el('div', { class: 'setRow__actions' }, soundButton, testSoundButton),
         ),
         el('div', { class: 'setRow' },
           el('div', { class: 'setRow__text' },
@@ -196,8 +214,9 @@ export function createInfoPanel(handlers: {
             el('span', { class: 'setRow__help', text: t('set.voiceHelp') }),
             voiceNote,
           ),
-          voiceButton,
+          el('div', { class: 'setRow__actions' }, voiceButton, testVoiceButton),
         ),
+        testNote,
         el('div', { class: 'setRow' },
           el('div', { class: 'setRow__text' },
             el('span', { class: 'setRow__label', text: t('set.tsunamiLayer') }),

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EewAlert } from '../src/core/models';
 import {
   DEFAULT_ALERT_POLICY,
+  eewFocusKey,
   expireAlert,
   ingestEew,
   nextArrival,
@@ -176,5 +177,47 @@ describe('alert helpers', () => {
     const top = strongestAreas(a, 2);
     expect(top[0]?.scaleTo).toBe(55);
     expect(top).toHaveLength(2);
+  });
+});
+
+describe('eewFocusKey (EEW camera auto-framing identity)', () => {
+  it('qualifies a genuine warning with real coordinates', () => {
+    const a = alert(eewWarning);
+    expect(eewFocusKey(a)).toContain(a.eventId);
+    expect(eewFocusKey(alert(eewForecast))).not.toBeNull();
+  });
+
+  it('is stable across serial revisions of the same bulletin', () => {
+    const first = alert(eewWarning);
+    const revised = alert({ ...eewWarning, issue: { ...eewWarning.issue, serial: '9' } }, T + 9000);
+    expect(eewFocusKey(revised)).toBe(eewFocusKey(first));
+  });
+
+  it('changes only when the epicentre moves meaningfully (>= 0.1°)', () => {
+    const a = alert(eewWarning);
+    const nudged = alert({
+      ...eewWarning,
+      earthquake: {
+        ...eewWarning.earthquake,
+        hypocenter: { ...eewWarning.earthquake.hypocenter, longitude: 140.64 },
+      },
+    });
+    expect(eewFocusKey(nudged)).toBe(eewFocusKey(a));
+    const moved = alert({
+      ...eewWarning,
+      earthquake: {
+        ...eewWarning.earthquake,
+        hypocenter: { ...eewWarning.earthquake.hypocenter, longitude: 140.9 },
+      },
+    });
+    expect(eewFocusKey(moved)).not.toBe(eewFocusKey(a));
+  });
+
+  it('never qualifies test bulletins, cancellations, or missing coordinates', () => {
+    expect(eewFocusKey(alert({ ...eewWarning, test: true }))).toBeNull();
+    expect(eewFocusKey(alert(eewCancelled))).toBeNull();
+    const noEpi = alert(eewWarning);
+    expect(eewFocusKey({ ...noEpi, epicenter: null })).toBeNull();
+    expect(eewFocusKey(null)).toBeNull();
   });
 });

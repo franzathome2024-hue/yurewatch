@@ -177,6 +177,12 @@ const DYNAMIC = [
     h: 768,
     query: 'demo=warning',
     baseline: { query: 'demo=normal' },
+    // Since the EEW camera-framing feature, a qualifying warning centres the
+    // map on the epicentre — that is the intended view when this scenario
+    // starts. The subject here is the strip-resize refit, so measure from
+    // the nationwide view the labelled reset button restores (which also
+    // proves the reset works after an EEW auto-focus).
+    recenterBeforeMeasure: true,
   },
 ];
 
@@ -645,6 +651,11 @@ for (const c of [...CASES, ...DYNAMIC]) {
   if (c.resizeTo) {
     await page.setViewportSize({ width: c.resizeTo.w, height: c.resizeTo.h });
     await page.waitForTimeout(900);
+  }
+
+  if (c.recenterBeforeMeasure) {
+    await page.evaluate(() => window.__yurewatch.recenter());
+    await page.waitForTimeout(700);
   }
 
   const m = await measure(page);
