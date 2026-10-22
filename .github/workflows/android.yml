@@ -111,7 +111,7 @@ jobs:
           cat SHA256SUMS
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: yurewatch-apk
           path: |
