@@ -1,6 +1,8 @@
 # --- build output -------------------------------------------------------
 dist/
 build/
+# GitHub Pages artifact, assembled by `npm run site:build`
+_site/
 *.apk
 *.aab
 *.class

@@ -15,9 +15,12 @@
     "map:data": "python3 scripts/build_map_data.py",
     "android:apk": "bash tools/build-apk.sh",
     "verify:web": "node tools/verify-web.mjs",
+    "site:build": "node tools/build-site.mjs",
+    "site:serve": "node tools/serve-site.mjs",
     "test:all": "npm run typecheck && npm test && npm run build && npm run qa:map && npm run qa:ui",
     "qa:map": "node tools/map-qa.mjs",
-    "qa:ui": "node tools/ui-audit.mjs matrix"
+    "qa:ui": "node tools/ui-audit.mjs matrix",
+    "verify:site": "node tools/verify-site.mjs"
   },
   "devDependencies": {
     "jsdom": "^25.0.1",

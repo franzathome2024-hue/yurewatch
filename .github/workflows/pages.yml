@@ -1,0 +1,128 @@
+name: pages
+
+# Website deployment only.
+#
+# Deliberately NOT triggered by tags: the Android workflow (android.yml) owns tag
+# pushes and release assets. A web deployment can therefore never publish or
+# overwrite an APK, and a tag release can never trigger a site deploy.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deployments at once; never cancel an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# Least privilege: read-only by default, widened only in the deploy job.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build site
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The existing single-file build. The site reuses it verbatim; there is no
+      # second application and no second build configuration.
+      - name: Build single-file app bundle
+        run: npm run build
+
+      # Assembles _site/ and fails on any broken asset path, any root-absolute
+      # reference, or a viewer that is no longer self-contained.
+      - name: Assemble and validate the site
+        run: npm run site:build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write      # required to publish
+      id-token: write   # required for the OIDC token
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  verify:
+    name: verify the published site
+    needs: deploy
+    runs-on: ubuntu-22.04
+    steps:
+      # GitHub Pages can take a couple of minutes to propagate. Poll, then assert
+      # content rather than trusting a 200 — an empty 404 page also returns 200
+      # on some Pages configurations.
+      - name: Check the published URLs
+        run: |
+          set -euo pipefail
+          BASE="https://franzathome2024-hue.github.io/yurewatch"
+
+          fetch() { curl -fsS --retry 3 --retry-delay 5 --max-time 30 "$1" || echo "FAILED"; }
+
+          echo "waiting for $BASE/ to serve the landing page..."
+          ok=0
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 30 -o /tmp/landing.html "$BASE/"; then
+              if grep -q "Open Live Viewer" /tmp/landing.html; then ok=1; break; fi
+            fi
+            echo "  attempt $i: not ready yet"
+            sleep 15
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::landing page did not come up at $BASE/"
+            exit 1
+          fi
+          echo "landing page OK"
+
+          echo "waiting for $BASE/viewer/ ..."
+          ok=0
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 30 -o /tmp/viewer.html "$BASE/viewer/"; then
+              if grep -q "data-yw-site-back" /tmp/viewer.html; then ok=1; break; fi
+            fi
+            sleep 10
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::viewer did not come up at $BASE/viewer/"
+            exit 1
+          fi
+          echo "viewer OK"
+
+      - name: Check every asset the landing page references
+        run: |
+          set -euo pipefail
+          BASE="https://franzathome2024-hue.github.io/yurewatch"
+          missing=0
+          for url in $(grep -oE '(href|src)="[^"]+"' /tmp/landing.html \
+                       | sed -E 's/^(href|src)="//; s/"$//' \
+                       | grep -vE '^(#|mailto:|tel:|data:|https?://)'); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$BASE/$url" || echo 000)
+            if [ "$code" != "200" ]; then
+              echo "::error::broken asset $BASE/$url (HTTP $code)"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+          echo "all referenced assets return 200"

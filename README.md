@@ -179,18 +179,28 @@ Releases: when a `v*` tag is pushed, `.github/workflows/android.yml` builds the
 APK and attaches it to the GitHub Release. CI builds are signed with a throwaway
 key generated at build time — see [Signing](#signing).
 
-### Web build (development only)
+### Web build & website
+
+**Live: https://franzathome2024-hue.github.io/yurewatch/** — landing page, with
+the browser viewer at [`/viewer/`](https://franzathome2024-hue.github.io/yurewatch/viewer/).
 
 ```bash
 npm ci
 npm run dev          # http://localhost:5173  (dev server, for development)
 npm run build        # dist/yurewatch.html — one self-contained file
 npm run preview      # serve dist/ over HTTP
+npm run site:build   # assemble the Pages site (landing page + viewer) -> _site/
+npm run site:serve   # preview it at http://localhost:4173/yurewatch/
+npm run verify:site  # headless-browser checks against that preview
 ```
 
 `dist/yurewatch.html` has **zero external references** (no CDN, no fonts, no
 image URLs); the build fails if one appears. Open it from the filesystem or from
-any static host.
+any static host. The public website is that same file served at `/viewer/` next
+to a hand-written landing page — one application, one build, deployed by
+`.github/workflows/pages.yml` on pushes to `main` (tags and APK releases are a
+separate workflow and never interact). See [docs/WEBSITE.md](docs/WEBSITE.md)
+for the deployment, verification and rollback procedures.
 
 ---
 
