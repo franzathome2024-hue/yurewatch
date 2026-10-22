@@ -54,9 +54,9 @@
   thing (fixed luma threshold vs dimmed prefectures; hard-coded "ocean" points that
   the new islands invalidated). **109/109 across 9 viewports**; 281 unit tests.
 
-## v0.4.0 — 2026-10-22
+### Milestone 1 — evidence-based interface refinement
 
-Milestone 1: evidence-based interface refinement. Every change below was measured
+Every change below was measured
 on the shipped build first (Playwright, 6 viewports × 10 demo states = 60 layout
 states); the audit and the before/after table live in `docs/UI.md`.
 

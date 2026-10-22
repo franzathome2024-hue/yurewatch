@@ -319,6 +319,13 @@ KEYSTORE=/secure/release.jks KEYSTORE_PASS=… KEY_ALIAS=… KEY_PASS=… \
 No key material, password or token is committed. `.gitignore` covers
 `android/keystore/`, `*.jks`, `*.keystore` and `.env*`.
 
+**Release strategy:** tagged releases are signed with the project release
+key (held in repository secrets) so users can install updates over an
+existing installation; a tag build fails if the secrets are missing.
+Releases up to v0.4.0 used an ephemeral CI key, so moving from one of those
+to a release-key build needs a one-time uninstall. Full strategy, key
+setup and backup rules: [docs/RELEASING.md](docs/RELEASING.md).
+
 ---
 
 ## Demo mode

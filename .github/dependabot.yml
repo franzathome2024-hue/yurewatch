@@ -1,0 +1,19 @@
+# Dependency maintenance: the app has zero runtime dependencies, so these
+# updates only affect the build/test toolchain and the workflows themselves.
+# Grouped minor/patch PRs keep the review burden low; majors (e.g. vite,
+# vitest) arrive individually and must pass the full CI suite.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

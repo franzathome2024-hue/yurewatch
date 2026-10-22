@@ -1,4 +1,4 @@
-# YureWatch UI (v0.2)
+# YureWatch UI (v0.2 redesign — current as of v0.4.0)
 
 This document records the v0.2 interface redesign: what changed, why, and which
 constraints the layout is required to satisfy. It is written for whoever touches

@@ -41,11 +41,36 @@ jobs:
           fi
           echo "bundle size: $(du -h dist/yurewatch.html | cut -f1)"
 
+      # Assemble and validate the GitHub Pages site (asset paths, subpath
+      # safety, PWA manifest/worker). Deployment itself lives in pages.yml;
+      # running the validator here catches site breakage on pull requests,
+      # which the Pages workflow never sees.
+      - name: Assemble and validate the website
+        run: npm run site:build
+
       - name: Upload web bundle
         uses: actions/upload-artifact@v4
         with:
           name: yurewatch-web
           path: dist/yurewatch.html
+
+  map-qa:
+    name: map QA (framing/overlay checks)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      # Deterministic (bundled geometry, local server, no live API), so a
+      # failure here is a real regression and blocks.
+      - name: Run map QA
+        run: npm run qa:map
 
   browser-checks:
     name: browser integration checks
