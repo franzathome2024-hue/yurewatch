@@ -61,6 +61,13 @@ export function ingestEew(
     return { alert: current, outcome: 'ignored-test', accepted: false };
   }
 
+  // Even when test bulletins may be displayed, a test transmission must
+  // never displace a genuine alert that is currently on screen: a 訓練/試験
+  // telegram for another event leaves a live warning untouched.
+  if (incoming.isTest && current && !current.isTest && isActive(current.state)) {
+    return { alert: current, outcome: 'ignored-test', accepted: false };
+  }
+
   // Cancellation of something we never saw: keep the current screen state.
   if (incoming.state === 'cancelled' && (!current || current.eventId !== incoming.eventId)) {
     return { alert: current, outcome: 'ignored-cancel-for-unknown-event', accepted: false };

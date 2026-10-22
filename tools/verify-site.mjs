@@ -421,6 +421,68 @@ const browser = await chromium.launch();
   await context.close();
 }
 
+/* ------------------------------------------------- history persistence -- */
+
+{
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  await page.goto(`${BASE}/viewer/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#app', { timeout: 20_000 });
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+
+  // a successful live session persists a bounded event history
+  let stored = false;
+  try {
+    await page.waitForFunction(
+      () =>
+        (window.__yurewatch?.store().events.length ?? 0) > 0 &&
+        !!localStorage.getItem('yurewatch.history.v1'),
+      { timeout: 30_000 },
+    );
+    stored = true;
+  } catch { /* provider unreachable */ }
+  check(stored, 'live session persists recent-event history to storage');
+
+  if (stored) {
+    const payload = await page.evaluate(() => JSON.parse(localStorage.getItem('yurewatch.history.v1')));
+    check(
+      !('alert' in payload) && !('tsunami' in payload) && Array.isArray(payload.events),
+      'history snapshot contains events only (no EEW/tsunami state to resurrect)',
+      Object.keys(payload).join(', '),
+    );
+
+    // cold start with no network: history shows, labelled, no alert revived
+    await context.setOffline(true);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#app', { timeout: 20_000 });
+    await page.waitForTimeout(1500);
+    const restored = await page.evaluate(() => {
+      const s = window.__yurewatch.store();
+      return {
+        events: s.events.length,
+        alert: s.alert,
+        snapshotAt: s.historySnapshotAt,
+        lastSuccessAt: s.health.lastSuccessAt,
+      };
+    });
+    check(restored.events > 0, 'offline cold start restores saved events', `${restored.events} events`);
+    check(restored.alert === null, 'offline cold start revives no EEW alert');
+    check(
+      restored.snapshotAt !== null && restored.lastSuccessAt === null,
+      'restored history is marked as a snapshot, freshness stays unclaimed',
+    );
+    const text = await page.evaluate(() => document.body.innerText);
+    check(
+      text.includes('保存済みの履歴') || text.includes('Saved history'),
+      'status strip labels the data as saved history',
+    );
+    await context.setOffline(false);
+  }
+  await context.close();
+}
+
 /* ---------------------------------------------------------- offline state */
 
 {
@@ -431,7 +493,15 @@ const browser = await chromium.launch();
   await page.waitForTimeout(1500);
 
   await context.setOffline(true);
-  await page.waitForTimeout(6000);
+  // The state flips via the window 'offline' event or the next failing poll
+  // (idle cadence is 20 s), so wait for the wording instead of sleeping a
+  // fixed interval that races the poll schedule.
+  try {
+    await page.waitForFunction(
+      () => document.body.innerText.includes('オフライン') || document.body.innerText.includes('Offline'),
+      { timeout: 30_000 },
+    );
+  } catch { /* fall through to the checks below, which will report it */ }
   const offlineText = await page.evaluate(() => document.body.innerText);
   const showsOffline = offlineText.includes('オフライン') || offlineText.includes('Offline');
   check(showsOffline, 'offline is stated in words, not only a dot', showsOffline ? 'オフライン shown' : 'not shown');

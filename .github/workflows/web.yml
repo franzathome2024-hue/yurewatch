@@ -23,6 +23,20 @@ jobs:
 
       - run: npm ci
 
+      # package.json and the Android manifest both carry the version; they
+      # must never drift (the UI displays package.json's version, Android
+      # displays the manifest's).
+      - name: Assert version consistency
+        run: |
+          set -euo pipefail
+          PKG="$(node -p "require('./package.json').version")"
+          MANIFEST="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' android/app/AndroidManifest.xml)"
+          echo "package.json=$PKG manifest=$MANIFEST"
+          if [ "$PKG" != "$MANIFEST" ]; then
+            echo "::error::version drift: package.json ($PKG) != AndroidManifest versionName ($MANIFEST)"
+            exit 1
+          fi
+
       - name: Typecheck
         run: npm run typecheck
 

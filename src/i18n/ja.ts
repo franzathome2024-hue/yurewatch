@@ -298,6 +298,7 @@ export const ja = {
 
   'status.source': 'P2P地震情報 v2（気象庁情報の中継）',
   'status.lastUpdate': '最終更新 {time}',
+  'status.history': '保存済みの履歴 {time}',
   'status.mode.live': 'LIVE',
   'status.mode.demo': 'DEMO',
   'status.retry': '再取得',

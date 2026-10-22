@@ -132,10 +132,13 @@ jobs:
             Bilingual interface: **Japanese (default)** and English, switched from the
             header and remembered across restarts.
 
-            **This APK is signed with an ephemeral CI key** (generated at build
-            time, not stored). It installs and runs, but it cannot be updated
-            over an installation signed with a different key, and it is not a
-            Play Store artefact.
+            **Signing:** this APK is signed with the project release key, so it
+            installs as an update over any earlier release signed with the same
+            key. Builds published before the release key was introduced (v0.4.0
+            and earlier) used an ephemeral CI key — if you installed one of
+            those, uninstall it once before installing this build. This is not
+            a Play Store artefact. Verify your download with the attached
+            `SHA256SUMS` (`sha256sum -c SHA256SUMS`).
 
             Informational viewer only. Not an earthquake prediction or detection
             system, and not a substitute for JMA announcements or local

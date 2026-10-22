@@ -363,7 +363,9 @@ export class App {
     this.statusFresh.textContent =
       state.health.lastSuccessAt !== null
         ? `${t('status.lastUpdate', { time: formatJstClock(state.health.lastSuccessAt) })} · ${freshnessLabel(fresh)}`
-        : `${t('status.noData')} · ${freshnessLabel(fresh)}`;
+        : state.historySnapshotAt !== null && state.events.length > 0
+          ? `${t('status.history', { time: formatJstClock(state.historySnapshotAt) })} · ${freshnessLabel(fresh)}`
+          : `${t('status.noData')} · ${freshnessLabel(fresh)}`;
     this.statusFresh.dataset.freshness = fresh;
     this.statusFresh.dataset.conn = state.health.state;
 

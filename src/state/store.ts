@@ -8,7 +8,7 @@ import type {
 } from '../core/models';
 import { DEFAULT_ALERT_POLICY, expireAlert, ingestEew, type AlertPolicy } from './alert';
 import { t } from '../i18n';
-import { ingestEvents } from './events';
+import { ingestEvents, sortEvents } from './events';
 
 export type AppMode = 'live' | 'demo';
 
@@ -42,6 +42,13 @@ export interface AppState {
   alert: EewAlert | null;
   alertHistory: EewAlert[];
   tsunami: TsunamiInfo | null;
+  /**
+   * When the currently shown events came from the on-device history snapshot
+   * rather than a fetch this session (ms epoch of that fetch), else null.
+   * Purely a display marker: freshness is still governed by
+   * `health.lastSuccessAt`, which a restore never sets.
+   */
+  historySnapshotAt: number | null;
   demo: DemoStatus | null;
   preferences: AppPreferences;
   /** Diag counters surfaced in the diagnostics panel. */
@@ -73,6 +80,7 @@ export const initialState = (mode: AppMode = 'live', now = Date.now()): AppState
   alert: null,
   alertHistory: [],
   tsunami: null,
+  historySnapshotAt: null,
   demo: null,
   preferences: { soundEnabled: false, demoAudio: false, reduceMotion: false, tsunamiLayer: true, voiceEnabled: false },
   diagnostics: {
@@ -89,6 +97,7 @@ export const initialState = (mode: AppMode = 'live', now = Date.now()): AppState
 export type Action =
   | { type: 'connection'; state: ConnectionState; at: number; detail?: string | null }
   | { type: 'batch'; events: EarthquakeEvent[]; eews: EewAlert[]; tsunami: TsunamiInfo | null; at: number; rejected: number }
+  | { type: 'history-restored'; events: EarthquakeEvent[]; at: number }
   | { type: 'error'; message: string; at: number; fatal?: boolean }
   | { type: 'select'; id: string | null }
   | { type: 'mode'; mode: AppMode }
@@ -109,6 +118,19 @@ export interface ReduceContext {
  */
 export function reduce(state: AppState, action: Action, ctx: ReduceContext = { sound: () => {} }): AppState {
   switch (action.type) {
+    case 'history-restored': {
+      // Saved history from a previous session. Events only — never an alert
+      // or tsunami bulletin — and `health` is untouched, so nothing about
+      // this can be mistaken for fresh data.
+      const events = sortEvents(action.events).slice(0, 80);
+      return {
+        ...state,
+        events,
+        selectedEventId: state.selectedEventId ?? events[0]?.id ?? null,
+        historySnapshotAt: action.at,
+      };
+    }
+
     case 'connection': {
       const health: FeedHealth = {
         ...state.health,
@@ -163,6 +185,7 @@ export function reduce(state: AppState, action: Action, ctx: ReduceContext = { s
         ...state,
         events,
         selectedEventId,
+        historySnapshotAt: null,
         alert: expireAlert(alert, action.at, ctx.alertPolicy ?? DEFAULT_ALERT_POLICY),
         alertHistory,
         tsunami: nextTsunami ?? null,
@@ -233,6 +256,7 @@ export function reduce(state: AppState, action: Action, ctx: ReduceContext = { s
         alert: null,
         alertHistory: [],
         tsunami: null,
+        historySnapshotAt: null,
         selectedEventId: null,
         diagnostics: { ...state.diagnostics, batches: 0, rejectedRecords: 0, sourceRecords: 0, lastError: null, lastBatchAt: null },
       };

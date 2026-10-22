@@ -8,7 +8,7 @@ npm run typecheck           # strict tsc, no emit
 npm run build               # tsc + vite + single-file inline + external-ref check
 node tools/verify-web.mjs   # 69 browser checks in Chromium (incl. 6 viewports)
 npm run qa:map              # 109 map framing/overlay checks (Chromium, deterministic)
-npm run verify:site         # 58 website + PWA checks at the /yurewatch/ subpath
+npm run verify:site         # 64 website + PWA checks at the /yurewatch/ subpath
 node tools/screenshots.mjs  # regenerates docs/screenshots/ from dist/
 bash tools/build-apk.sh     # signed, verified APK
 ```

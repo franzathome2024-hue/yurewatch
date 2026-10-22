@@ -35,34 +35,43 @@ export interface RecencySplit<T> {
   stale: T[];
 }
 
-/** Split EEW telegrams into live-relevant and historical ones. */
-export function partitionEews<T extends { issuedAt: number | null; receivedAt: number }>(
-  eews: T[],
-  now: number,
-  maxAgeMs: number = EEW_MAX_AGE_MS,
-): RecencySplit<T> {
+/**
+ * Split EEW telegrams into live-relevant and historical ones.
+ *
+ * The age anchor is source-supplied time only: bulletin issue time, falling
+ * back to the earthquake origin time. It is *never* the local receive time —
+ * `receivedAt` is "now" by construction, so anchoring on it would wave
+ * through any telegram whose timestamps are missing or unparseable,
+ * including days-old warnings held by the relay. A telegram that cannot be
+ * dated from source fields is treated as historical, not as fresh.
+ */
+export function partitionEews<
+  T extends { issuedAt: number | null; originTime?: number | null; receivedAt: number },
+>(eews: T[], now: number, maxAgeMs: number = EEW_MAX_AGE_MS): RecencySplit<T> {
   const fresh: T[] = [];
   const stale: T[] = [];
   for (const eew of eews) {
-    const at = eew.issuedAt ?? eew.receivedAt;
-    if (now - at <= maxAgeMs) fresh.push(eew);
+    const at = eew.issuedAt ?? eew.originTime ?? null;
+    if (at !== null && now - at <= maxAgeMs) fresh.push(eew);
     else stale.push(eew);
   }
   return { fresh, stale };
 }
 
-/** Keep only the most recent tsunami bulletin, and only if it is still current. */
+/**
+ * Keep only the most recent tsunami bulletin, and only if it is still current.
+ * Same anchoring rule as EEW: source issue time only, never receive time.
+ * Undated bulletins sort last and are never picked as current.
+ */
 export function pickCurrentTsunami<T extends { issuedAt: number | null; receivedAt: number }>(
   bulletins: T[],
   now: number,
   maxAgeMs: number = TSUNAMI_MAX_AGE_MS,
 ): T | null {
-  const sorted = [...bulletins].sort(
-    (a, b) => (b.issuedAt ?? b.receivedAt) - (a.issuedAt ?? a.receivedAt),
-  );
+  const sorted = [...bulletins].sort((a, b) => (b.issuedAt ?? -Infinity) - (a.issuedAt ?? -Infinity));
   const latest = sorted[0];
-  if (!latest) return null;
-  return now - (latest.issuedAt ?? latest.receivedAt) <= maxAgeMs ? latest : null;
+  if (!latest || latest.issuedAt === null) return null;
+  return now - latest.issuedAt <= maxAgeMs ? latest : null;
 }
 
 export interface LiveFeedOptions {

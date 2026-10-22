@@ -66,6 +66,29 @@ describe('ingestEew', () => {
     expect(res.alert).toBeNull();
   });
 
+  it('never lets a test transmission displace a live warning (production wiring)', () => {
+    const live = ingestEew(null, alert(eewWarning)).alert!;
+    // A 訓練/試験 bulletin for a *different* event, ingested the way the store
+    // does it (test bulletins displayable), must leave the live warning alone.
+    const test = alert({
+      ...eewWarning,
+      test: true,
+      issue: { ...eewWarning.issue, eventId: 'test-event-1' },
+    });
+    const res = ingestEew(live, test, { allowTest: true });
+    expect(res.outcome).toBe('ignored-test');
+    expect(res.accepted).toBe(false);
+    expect(res.alert).toBe(live);
+    expect(res.alert?.isTest).toBe(false);
+  });
+
+  it('still shows a test transmission when no live alert is on screen', () => {
+    const test = alert({ ...eewWarning, test: true });
+    const res = ingestEew(null, test, { allowTest: true });
+    expect(res.accepted).toBe(true);
+    expect(res.alert?.isTest).toBe(true);
+  });
+
   it('refuses test transmissions when they are not allowed', () => {
     const first = ingestEew(null, alert(eewWarning)).alert!;
     const test = alert({ ...eewWarning, test: true, issue: { ...eewWarning.issue, serial: '2' } });

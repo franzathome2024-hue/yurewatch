@@ -303,6 +303,7 @@ export const en: Record<MessageKey, string> = {
 
   'status.source': 'P2P Earthquake Information v2 (relaying JMA)',
   'status.lastUpdate': 'Last update {time}',
+  'status.history': 'Saved history {time}',
   'status.mode.live': 'LIVE',
   'status.mode.demo': 'DEMO',
   'status.retry': 'Retry',

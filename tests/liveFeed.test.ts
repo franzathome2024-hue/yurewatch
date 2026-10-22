@@ -295,12 +295,19 @@ describe('recency gating (history endpoint returns old telegrams)', () => {
     expect(EEW_MAX_AGE_MS).toBe(10 * 60_000);
   });
 
-  it('treats a telegram with no issue time as stale when it cannot be dated', async () => {
+  it('dates an undated telegram from its origin time, never from receive time', async () => {
     const { partitionEews } = await import('../src/net/liveFeed');
-    const now = 1_000_000_000;
-    const undated = { issuedAt: null, receivedAt: now };
-    expect(partitionEews([undated], now).fresh).toHaveLength(1); // receivedAt anchors it
-    expect(partitionEews([{ ...undated, receivedAt: now - 3600_000 }], now).fresh).toHaveLength(0);
+    const now = Date.UTC(2026, 9, 22, 8, 0, 0);
+    const undatedRecent = { issuedAt: null, originTime: now - 60_000, receivedAt: now };
+    const undatedOld = { issuedAt: null, originTime: now - 6 * 24 * 3600_000, receivedAt: now };
+    const undatable = { issuedAt: null, originTime: null, receivedAt: now };
+    // Origin time can date it…
+    expect(partitionEews([undatedRecent], now).fresh).toHaveLength(1);
+    expect(partitionEews([undatedOld], now).fresh).toHaveLength(0);
+    // …but a telegram no source field can date is historical, however new
+    // the local receive time is (receivedAt is "now" by construction).
+    expect(partitionEews([undatable], now).fresh).toHaveLength(0);
+    expect(partitionEews([undatable], now).stale).toHaveLength(1);
   });
 
   it('never surfaces a week-old EEW as a live alert', async () => {

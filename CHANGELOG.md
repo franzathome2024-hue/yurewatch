@@ -1,6 +1,62 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Public website** (Milestone 4): landing page and the browser viewer at
+  <https://franzathome2024-hue.github.io/yurewatch/viewer/>, deployed by
+  `.github/workflows/pages.yml` from the same single-file build as the APK.
+  See `docs/WEBSITE.md`.
+- **Installable PWA** (Milestone 5): the web viewer can be installed; its
+  service worker caches only the application shell for offline startup and
+  never intercepts or caches feed data. See `docs/PWA.md`.
+- **Release hardening** (Milestone 6): tagged releases must be signed with
+  the project release key (build fails otherwise), `SHA256SUMS` uses bare
+  filenames and is verified in CI, map QA runs as a blocking CI job, and a
+  package.json ↔ AndroidManifest version-drift check gates CI.
+  See `docs/RELEASING.md`.
+- **Saved recent-event history** (reliability audit): a cold start with no
+  network now shows the previous session's recent earthquakes, labelled
+  保存済みの履歴 / "Saved history" with the snapshot time. Only earthquake
+  records are stored (bounded, on-device) — EEW and tsunami state is never
+  persisted, so no warning can be revived from storage.
+
+### Fixed
+
+- **Undated bulletins could look brand-new.** The recency gate anchored
+  EEW/tsunami telegrams with a missing issue time to the local receive
+  time ("now"), so a days-old warning held by the relay could pass as
+  fresh. Telegrams are now dated only from source fields (issue time,
+  then earthquake origin time); a telegram that cannot be dated is
+  treated as historical, never as an active warning.
+- **A test bulletin could displace a real warning.** A 訓練/試験 telegram
+  for a different event no longer replaces a live warning on screen.
+  Test bulletins remain visible (badged TEST) when no genuine alert is
+  active, and still never trigger sound or speech.
+
+### Known limitations
+
+- Polling, not push: warnings can arrive seconds after publication; no
+  background EEW delivery in either the APK or the PWA, and no notification
+  guarantee is made anywhere.
+- EEW shown is 緊急地震速報（警報）via a third-party relay (P2P地震情報)
+  with no availability warranty; tsunami content is 津波予報 (forecasts),
+  not observed heights.
+- Full list: README “Limitations” and `docs/PWA.md` (browser-specific).
+
+### Migration
+
+- **Android:** releases up to v0.4.0 were signed with an ephemeral CI key.
+  The first release signed with the project release key cannot be installed
+  over those builds — uninstall the old app once, then install. Your only
+  stored setting is the language preference; nothing else is lost.
+- **Web / PWA:** none. The site deploys in place; the service worker picks
+  up new deployments automatically and evicts stale caches.
+
 ## v0.4.0 — 2026-10-22 (published: tag `v0.4.0`, APK 226,233 B, SHA-256 `6a334093c7…2afac3`)
+
+One release containing Milestones 1–3 below.
 
 ### Milestone 2 — geographic data audit
 

@@ -4,6 +4,7 @@ import { getScenario } from './demo/scenarios';
 import { detectTransport } from './net/transport';
 import { LiveFeed, type FeedEvent } from './net/liveFeed';
 import { Store, initialState, type AppMode, type AppState } from './state/store';
+import { loadHistory, saveHistory } from './state/historyCache';
 import { initLocale, normalizeLocale, onLocaleChange, setLocale, t } from './i18n';
 import { App } from './ui/app';
 import { Speech } from './ui/speech';
@@ -61,6 +62,17 @@ const prefersReducedMotion =
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const store = new Store(initialState(mode, Date.now()));
+
+// Cold start: show the previous session's recent earthquakes as saved
+// history until the first fetch succeeds. Events only — the snapshot
+// cannot resurrect an EEW or tsunami bulletin (they are never stored),
+// and freshness stays "no data" until a real fetch lands.
+if (mode === 'live') {
+  const snapshot = loadHistory();
+  if (snapshot) {
+    store.dispatch({ type: 'history-restored', events: snapshot.events, at: snapshot.savedAt });
+  }
+}
 store.dispatch({ type: 'preferences', patch: { soundEnabled: soundParam, demoAudio, reduceMotion: prefersReducedMotion } });
 
 const speech = new Speech();
@@ -114,6 +126,8 @@ function handleFeedEvent(event: FeedEvent): void {
     at: event.at,
     rejected: event.rejected,
   });
+  // Persist the recent-event history (live data only; best-effort).
+  if (activeFeed === 'live') saveHistory(store.get().events, event.at);
   const after = store.get().alert;
 
   // Audio policy: only for genuine warnings, never for tests, never for
