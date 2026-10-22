@@ -157,7 +157,7 @@ if [ ! -f "$KEYSTORE_PATH" ]; then
     -alias "$KEY_ALIAS_VALUE" \
     -keyalg RSA -keysize 2048 -validity 10000 \
     -storepass "$KEYSTORE_PASS_VALUE" -keypass "$KEY_PASS_VALUE" \
-    -dname "CN=YureWatch Debug, OU=v0.1, O=YureWatch, L=Tokyo, C=JP" >/dev/null 2>&1
+    -dname "CN=YureWatch Debug, OU=YureWatch, O=YureWatch, L=Tokyo, C=JP" >/dev/null 2>&1
 fi
 
 APK="$BUILD/yurewatch-${VERSION_NAME}.apk"

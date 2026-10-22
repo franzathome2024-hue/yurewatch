@@ -3,10 +3,10 @@
 Three layers, all runnable locally and in CI.
 
 ```bash
-npm test                    # 184 unit/integration tests (vitest + jsdom)
+npm test                    # 203 unit/integration tests (vitest + jsdom)
 npm run typecheck           # strict tsc, no emit
 npm run build               # tsc + vite + single-file inline + external-ref check
-node tools/verify-web.mjs   # 26 browser checks in Chromium
+node tools/verify-web.mjs   # 63 browser checks in Chromium (incl. 6 viewports)
 node tools/screenshots.mjs  # regenerates docs/screenshots/ from dist/
 bash tools/build-apk.sh     # signed, verified APK
 ```
@@ -24,7 +24,8 @@ bash tools/build-apk.sh     # signed, verified APK
 | Demo engine | `tests/demo.test.ts` | catalogue integrity, determinism (played twice), per-scenario outcomes, "everything is simulated". |
 | Live feed | `tests/liveFeed.test.ts` | cadence budget, HTTP/network/JSON failures, exponential backoff, stale watchdog, recency gating. |
 | Data integrity | `tests/data.test.ts` | the 47-prefecture table and map geometry cannot drift. |
-| UI rendering | `tests/ui.test.ts` | 警報 vs 予報 wording, offline wording, SIMULATION badges, provenance, empty states. |
+| UI rendering | `tests/uiShell.test.ts` | v0.2 shell structure, view switching, sheet states, honest freshness, legend, info ordering |
+| `tests/ui.test.ts` | 警報 vs 予報 wording, offline wording, SIMULATION badges, provenance, empty states. |
 | Localisation | `tests/i18n.test.ts` | catalog key + placeholder parity, no untranslated English left in the Japanese catalog, Japanese default even on an `en-US` device, persistence, instant UI switch, JST formatting, intensity vocabulary, demo-scenario copy. |
 | Browser integration | `tools/verify-web.mjs` | boot, painted canvas, Android bridge contract, demo labelling, lifecycle hooks, back-gesture sequence, Japanese default in an `en-US` browser, English switch, persistence across reload, translated accessibility names, no horizontal overflow at phone width. |
 

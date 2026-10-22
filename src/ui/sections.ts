@@ -1,46 +1,93 @@
 import { scaleStyle } from '../core/intensity';
 import { formatAge, formatJst } from '../core/time';
-import { getLocaleVersion, t, type MessageKey } from '../i18n';
-import { connectionLabel, freshnessLabel, freshnessOf, initialState, type AppState } from '../state/store';
+import { LOCALES, getLocale, getLocaleVersion, setLocale, t, type Locale, type MessageKey } from '../i18n';
+import { connectionLabel, effectiveFreshness, freshnessLabel, initialState, type AppState } from '../state/store';
 import { disclosure, el, clear, badge } from './dom';
+import { createDemoPanel } from './demoPanel';
 
 /**
- * Progressive disclosure for secondary information. Nothing critical lives
- * here — warnings stay in the always-visible alert panel — but a reader needs to
- * be able to answer "where did this come from and is it still live?".
+ * The 情報 (information) panel.
  *
- * The whole tree is rebuilt when the language changes; the content closures
- * re-read state, so a switch is instant and lossless.
+ * Operational facts first (connection, freshness, counters), then data that is
+ * not connected, then settings, then clearly-marked developer tools, then the
+ * caveats. Simulation controls live at the bottom of this panel, never beside
+ * live earthquake information.
  */
-export function createSections(): { el: HTMLElement; update: (s: AppState) => void } {
-  const root = el('div', { class: 'sections' });
+export function createInfoPanel(handlers: {
+  onToggleSound: () => void;
+  onDemoStart: (id: string) => void;
+  onDemoStop: () => void;
+  onExport: () => void;
+}): { el: HTMLElement; update: (s: AppState) => void } {
+  const root = el('div', { class: 'info' });
   let stateRef: AppState | null = null;
   let builtLocale = -1;
   let updaters: Array<() => void> = [];
-  let tsunamiSection: HTMLElement;
-  let diagSection: HTMLElement;
+  let soundButton: HTMLButtonElement | null = null;
+  let langButtons = new Map<Locale, HTMLButtonElement>();
   const getState = (): AppState => stateRef ?? initialState();
+
+  const demoPanel = createDemoPanel({
+    onStart: handlers.onDemoStart,
+    onStop: handlers.onDemoStop,
+    onExport: handlers.onExport,
+  });
+
+  function group(title: string, ...children: Array<HTMLElement | null>): HTMLElement {
+    return el('section', { class: 'infoGroup' },
+      el('h3', { class: 'infoGroup__title', text: title }),
+      ...children,
+    );
+  }
 
   function build(): void {
     clear(root);
     updaters = [];
+    langButtons = new Map();
 
-    /* ---- tsunami ---- */
+    /* ---- 1. connection and freshness (operational, always open) ---- */
+    const diagBody = el('dl', { class: 'meta meta--tight' });
+    updaters.push(() => {
+      const state = getState();
+      const fresh = effectiveFreshness(state);
+      clear(diagBody);
+      diagBody.append(
+        metaRow(t('diag.mode'), state.mode === 'demo' ? t('diag.mode.demo') : t('diag.mode.live')),
+        metaRow(t('diag.conn'), connectionLabel(state.health.state)),
+        metaRow(
+          t('diag.lastOk'),
+          state.health.lastSuccessAt
+            ? `${formatJst(state.health.lastSuccessAt)}（${formatAge(state.health.lastSuccessAt, state.now)}）`
+            : t('meta.emDash'),
+        ),
+        metaRow(t('diag.freshness'), freshnessLabel(fresh)),
+        metaRow(t('diag.provider'), state.mode === 'demo' ? t('diag.provider.demo') : t('diag.provider.live')),
+        metaRow(t('diag.batches'), `${state.diagnostics.batches}`),
+        metaRow(t('diag.rejected'), `${state.diagnostics.rejectedRecords}`),
+        metaRow(t('diag.dupes'), `${state.diagnostics.duplicateAlertsIgnored}`),
+        metaRow(t('diag.lastError'), state.health.lastError ?? t('meta.emDash')),
+      );
+    });
+    root.appendChild(
+      group(t('diag.sectionTitle'), diagBody, el('p', { class: 'infoNote', text: t('diag.polling') })),
+    );
+
+    /* ---- 2. tsunami ---- */
     const tsunamiBody = el('div');
     updaters.push(() => {
       const state = getState();
       const ts = state.tsunami;
       clear(tsunamiBody);
       if (!ts) {
-        tsunamiBody.appendChild(el('p', { class: 'muted', text: t('tsunami.notReceived') }));
+        tsunamiBody.appendChild(el('p', { class: 'infoNote', text: t('tsunami.notReceived') }));
         return;
       }
       if (ts.cancelled) {
-        tsunamiBody.appendChild(el('p', { class: 'muted', text: t('tsunami.cancelled') }));
+        tsunamiBody.appendChild(el('p', { class: 'infoNote', text: t('tsunami.cancelled') }));
         return;
       }
       if (!ts.areas.length) {
-        tsunamiBody.appendChild(el('p', { class: 'muted', text: t('tsunami.noAreas') }));
+        tsunamiBody.appendChild(el('p', { class: 'infoNote', text: t('tsunami.noAreas') }));
         return;
       }
       tsunamiBody.appendChild(
@@ -55,49 +102,72 @@ export function createSections(): { el: HTMLElement; update: (s: AppState) => vo
         ),
       );
       tsunamiBody.appendChild(
-        el('p', { class: 'muted small', text: t('tsunami.issued', { time: formatJst(ts.issuedAt), provider: ts.source.provider }) }),
+        el('p', { class: 'infoNote', text: t('tsunami.issued', { time: formatJst(ts.issuedAt), provider: ts.source.provider }) }),
       );
     });
-
-    /* ---- NIED ---- */
-    const niedBody = el('div');
-    niedBody.append(
-      el('p', { class: 'muted', text: t('nied.body1') }),
-      el('p', { class: 'muted small', text: t('nied.body2') }),
-      el('p', { class: 'muted small', text: t('nied.body3') }),
+    root.appendChild(
+      disclosure({ title: t('tsunami.sectionTitle'), subtitle: t('tsunami.sectionSubtitle'), tone: 'warn', content: () => tsunamiBody }),
     );
 
-    /* ---- diagnostics ---- */
-    const diagBody = el('div');
-    updaters.push(() => {
-      const state = getState();
-      clear(diagBody);
-      const fresh = freshnessOf(state.health.lastSuccessAt, state.now);
-      diagBody.appendChild(
-        el('dl', { class: 'kv kv--tight' },
-          row(t('diag.mode'), state.mode === 'demo' ? t('diag.mode.demo') : t('diag.mode.live')),
-          row(t('diag.conn'), connectionLabel(state.health.state)),
-          row(
-            t('diag.lastOk'),
-            state.health.lastSuccessAt
-              ? `${formatJst(state.health.lastSuccessAt)}（${formatAge(state.health.lastSuccessAt, state.now)}）`
-              : t('meta.emDash'),
-          ),
-          row(t('diag.freshness'), freshnessLabel(fresh)),
-          row(t('diag.batches'), `${state.diagnostics.batches}`),
-          row(t('diag.rejected'), `${state.diagnostics.rejectedRecords}`),
-          row(t('diag.dupes'), `${state.diagnostics.duplicateAlertsIgnored}`),
-          row(t('diag.lastError'), state.health.lastError ?? t('meta.emDash')),
-          row(t('diag.provider'), state.mode === 'demo' ? t('diag.provider.demo') : t('diag.provider.live')),
-        ),
-      );
-      diagBody.appendChild(el('p', { class: 'muted small' }, t('diag.polling')));
-    });
+    /* ---- 3. NIED (not connected) ---- */
+    const niedBody = el('div');
+    niedBody.append(
+      el('p', { class: 'infoNote', text: t('nied.body1') }),
+      el('p', { class: 'infoNote', text: t('nied.body2') }),
+      el('p', { class: 'infoNote', text: t('nied.body3') }),
+    );
+    root.appendChild(
+      disclosure({ title: t('nied.sectionTitle'), subtitle: t('nied.subtitle'), content: () => niedBody }),
+    );
 
-    /* ---- about / limitations ---- */
+    /* ---- 4. settings ---- */
+    soundButton = el('button', { class: 'segBtn', type: 'button' });
+    soundButton.addEventListener('click', () => handlers.onToggleSound());
+
+    const langRow = el('div', { class: 'segmented', role: 'group', 'aria-label': t('set.language') });
+    for (const locale of LOCALES) {
+      const button = el('button', {
+        class: 'segBtn',
+        type: 'button',
+        'data-locale': locale,
+        lang: locale,
+        text: t(`lang.${locale}`),
+      });
+      button.addEventListener('click', () => setLocale(locale));
+      langButtons.set(locale, button);
+      langRow.appendChild(button);
+    }
+
+    root.appendChild(
+      group(
+        t('set.title'),
+        el('div', { class: 'setRow' },
+          el('div', { class: 'setRow__text' },
+            el('span', { class: 'setRow__label', text: t('set.language') }),
+            el('span', { class: 'setRow__help', text: t('set.languageHelp') }),
+          ),
+          langRow,
+        ),
+        el('div', { class: 'setRow' },
+          el('div', { class: 'setRow__text' },
+            el('span', { class: 'setRow__label', text: t('set.sound') }),
+            el('span', { class: 'setRow__help', text: t('set.soundHelp') }),
+          ),
+          soundButton,
+        ),
+        el('p', { class: 'infoNote', text: t('set.sourceHelp') }),
+      ),
+    );
+
+    /* ---- 5. developer: demo (clearly separated) ---- */
+    root.appendChild(
+      group(t('set.sectionDev'), demoPanel.el),
+    );
+
+    /* ---- 6. about ---- */
     const aboutBody = el('div');
     aboutBody.append(
-      el('p', { class: 'muted' }, t('about.p1')),
+      el('p', { class: 'infoNote', text: t('about.p1') }),
       el('ul', { class: 'bullets' },
         el('li', { text: t('about.li1') }),
         el('li', { text: t('about.li2') }),
@@ -105,32 +175,10 @@ export function createSections(): { el: HTMLElement; update: (s: AppState) => vo
         el('li', { text: t('about.li4') }),
         el('li', { text: t('about.li5') }),
       ),
-      el('p', { class: 'muted small', text: t('about.attribution') }),
+      el('p', { class: 'infoNote', text: t('about.attribution') }),
+      el('p', { class: 'infoNote infoNote--mono', text: t('set.version', { version: `v${__APP_VERSION__}` }) }),
     );
-
-    tsunamiSection = disclosure({
-      title: t('tsunami.sectionTitle'),
-      subtitle: t('tsunami.sectionSubtitle'),
-      tone: 'warn',
-      content: () => tsunamiBody,
-    });
-    const niedSection = disclosure({
-      title: t('nied.sectionTitle'),
-      subtitle: t('nied.subtitle'),
-      content: () => niedBody,
-    });
-    diagSection = disclosure({
-      title: t('diag.sectionTitle'),
-      subtitle: t('diag.subtitle'),
-      content: () => diagBody,
-    });
-    const aboutSection = disclosure({
-      title: t('about.sectionTitle'),
-      subtitle: t('about.subtitle'),
-      content: () => aboutBody,
-    });
-
-    root.append(tsunamiSection, niedSection, diagSection, aboutSection);
+    root.appendChild(disclosure({ title: t('about.sectionTitle'), subtitle: t('about.subtitle'), content: () => aboutBody }));
   }
 
   return {
@@ -142,26 +190,32 @@ export function createSections(): { el: HTMLElement; update: (s: AppState) => vo
         builtLocale = localeVersion;
         build();
       }
-      // Subtitles reflect live state.
-      const ts = state.tsunami;
-      const sub = ts ? (ts.cancelled ? t('tsunami.cancelled') : t('tsunami.areas', { n: ts.areas.length })) : t('tsunami.receivedNone');
-      const tsunamiSub = tsunamiSection.querySelector('.disclosure__subtitle');
-      if (tsunamiSub) {
-        const active = Boolean(ts && !ts.cancelled && ts.areas.length);
-        tsunamiSub.textContent = active ? t('tsunami.present', { sub }) : sub;
-      }
-      const diagSub = diagSection.querySelector('.disclosure__subtitle');
-      if (diagSub) {
-        const f = freshnessOf(state.health.lastSuccessAt, state.now);
-        diagSub.textContent = t('diag.subtitleValue', { conn: connectionLabel(state.health.state), fresh: freshnessLabel(f) });
-      }
       for (const u of updaters) u();
+
+      if (soundButton) {
+        const on = state.preferences.soundEnabled;
+        soundButton.textContent = on ? t('set.soundOn') : t('set.soundOff');
+        soundButton.setAttribute('aria-pressed', on ? 'true' : 'false');
+        soundButton.setAttribute('aria-label', `${t('set.sound')}: ${on ? t('set.soundOn') : t('set.soundOff')}`);
+        soundButton.classList.toggle('is-on', on);
+      }
+      const active = getLocale();
+      for (const [locale, button] of langButtons) {
+        const selected = locale === active;
+        button.classList.toggle('is-active', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        button.textContent = t(`lang.${locale}`);
+      }
+      demoPanel.update(state);
     },
   };
 }
 
-function row(label: string, value: string): HTMLElement {
-  return el('div', { class: 'kv__row' }, el('dt', { text: label }), el('dd', { text: value }));
+function metaRow(label: string, value: string): HTMLElement {
+  return el('div', { class: 'meta__row' },
+    el('dt', { class: 'meta__label', text: label }),
+    el('dd', { class: 'meta__value', text: value }),
+  );
 }
 
 const GRADE_KEYS: Record<string, MessageKey> = {
@@ -183,34 +237,76 @@ function gradeTone(grade: string): 'danger' | 'warn' | 'info' | 'neutral' {
   return 'neutral';
 }
 
-/** Small legend used under the map on larger screens. */
-export function createLegend(): { el: HTMLElement; update: (s: AppState) => void } {
+/* ---------------------------------------------------------------- legend -- */
+
+/**
+ * Map legend. Collapsed by default so it does not eat map space, but always one
+ * tap away, and it explains shapes as well as colours ("do not rely on colour
+ * alone" applied to the legend itself).
+ */
+export function createLegend(): { el: HTMLElement; update: (s: AppState) => void; isOpen: () => boolean } {
   const items = el('div', { class: 'legend__items' });
-  const root = el('div', { class: 'legend' }, items);
-  const codes: number[] = [10, 20, 30, 40, 45, 50, 55, 60, 70];
+  const panel = el('div', { class: 'legend__panel', hidden: 'hidden' });
+  const toggle = el('button', {
+    class: 'mapBtn mapBtn--legend',
+    type: 'button',
+    'aria-expanded': 'false',
+  },
+    el('span', { class: 'mapBtn__icon', 'aria-hidden': 'true', text: '?' }),
+    el('span', { class: 'mapBtn__label' }),
+  );
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    panel.hidden = !open;
+    root.classList.toggle('is-open', open);
+  });
+
+  const root = el('div', { class: 'legend' }, toggle, panel);
   let builtLocale = -1;
 
   const build = () => {
-    clear(items);
-    for (const code of codes) {
+    clear(panel);
+    items.remove();
+
+    const swatches = el('div', { class: 'legend__swatches', 'aria-hidden': 'true' });
+    for (const code of [10, 20, 30, 40, 45, 50, 55, 60, 70]) {
       const s = scaleStyle(code);
-      items.appendChild(
-        el('span', { class: 'legend__item' },
+      swatches.appendChild(
+        el('span', { class: 'legend__swatchItem' },
           el('span', { class: 'legend__swatch', style: `background:${s.fill}` }),
-          el('span', { text: s.label }),
+          el('span', { class: 'legend__swatchLabel', text: s.label }),
         ),
       );
     }
-    items.appendChild(
-      el('span', { class: 'legend__item legend__item--note' },
-        badge('×', 'danger'),
-        el('span', { text: t('map.legendEew') }),
+
+    panel.append(
+      el('h3', { class: 'legend__title', text: t('map.legendTitle') }),
+      el('p', { class: 'legend__sub', text: t('map.legendIntensity') }),
+      swatches,
+      el('ul', { class: 'legend__list' },
+        el('li', { class: 'legend__row' },
+          el('span', { class: 'legend__glyph legend__glyph--quake', 'aria-hidden': 'true' }),
+          el('span', { text: t('map.legendQuakeMarker') }),
+        ),
+        el('li', { class: 'legend__row' },
+          el('span', { class: 'legend__glyph legend__glyph--eew', 'aria-hidden': 'true' }, '×'),
+          el('span', { text: t('map.legendEewMarker') }),
+        ),
+        el('li', { class: 'legend__row' },
+          el('span', { class: 'legend__glyph legend__glyph--selected', 'aria-hidden': 'true' }),
+          el('span', { text: t('map.legendSelected') }),
+        ),
       ),
+      el('p', { class: 'legend__note', text: t('map.legendUnavailable') }),
     );
+    toggle.querySelector('.mapBtn__label')!.textContent = t('map.legend');
+    toggle.setAttribute('aria-label', t('map.legend'));
   };
 
   return {
     el: root,
+    isOpen: () => toggle.getAttribute('aria-expanded') === 'true',
     update() {
       const localeVersion = getLocaleVersion();
       if (localeVersion !== builtLocale) {

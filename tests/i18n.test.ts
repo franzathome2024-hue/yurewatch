@@ -268,7 +268,7 @@ describe('UI follows the language', () => {
     expect(getLocale()).toBe('en');
     expect(header.el.textContent).toContain('Live');
     expect(header.el.textContent).not.toContain('ライブ接続');
-    expect(header.el.textContent).toContain('Up to date');
+    expect(header.el.textContent).toContain('Japan earthquake monitoring');
     expect(alert.el.textContent).toContain('Earthquake Early Warning');
     expect(alert.el.textContent).not.toContain('緊急地震速報');
     expect(document.documentElement.getAttribute('lang')).toBe('en');
@@ -283,11 +283,14 @@ describe('UI follows the language', () => {
     const list = createEventList({ onSelect: () => {} });
     mounted(list.el);
     list.update(state);
-    expect(list.el.textContent).toContain('各地の震度に関する情報');
+    expect(list.el.textContent).toContain('深さ10km');
 
     setLocale('en');
     list.update(state);
-    expect(list.el.textContent).toContain('Intensity at each location');
+    expect(list.el.textContent).toContain('Depth 10km');
+    // Column headers re-localize too, not only the rows.
+    expect(list.el.textContent).toContain('Intensity');
+    expect(list.el.textContent).toContain('Epicenter');
   });
 
   it('re-renders the details panel on a language change', () => {

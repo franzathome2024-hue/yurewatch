@@ -78,6 +78,18 @@ export interface GeoBounds {
  */
 export const JAPAN_BOUNDS: GeoBounds = { west: 129.3, south: 30.8, east: 146.2, north: 45.6 };
 
+/**
+ * Frame used for the initial view and the "show all of Japan" control.
+ *
+ * The four main islands plus the Okinawa group: the region someone monitoring
+ * Japan expects to see at once. The dataset also contains detached islets far to
+ * the south and east (Okinotorishima, Minamitorishima); fitting to those would
+ * shrink the mainland to a strip in the corner. They remain reachable by
+ * panning, and are covered by the zoom limits, which are derived from the full
+ * geometry.
+ */
+export const PRIMARY_VIEW_BOUNDS: GeoBounds = { west: 127.0, south: 26.0, east: 146.6, north: 45.7 };
+
 /** Camera fitted to `bounds` inside a viewport, with padding in px. */
 export function fitBounds(bounds: GeoBounds, vp: Viewport, padding = 24): Camera {
   const nw = project({ lon: bounds.west, lat: bounds.north });
@@ -88,6 +100,30 @@ export function fitBounds(bounds: GeoBounds, vp: Viewport, padding = 24): Camera
   const availH = Math.max(40, vp.height - padding * 2);
   const scale = Math.min(availW / w, availH / h);
   return { cx: (nw.x + se.x) / 2, cy: (nw.y + se.y) / 2, scale };
+}
+
+/**
+ * Fit an arbitrary world-space rectangle into the viewport.
+ *
+ * Used with the *actual* geometry bounds rather than a hand-written lat/lon box:
+ * the dataset includes Okinawa and the offshore islands, and fitting to a
+ * narrower box silently cropped them on square-ish viewports.
+ */
+export function fitWorldRect(
+  rect: { minX: number; minY: number; maxX: number; maxY: number },
+  vp: Viewport,
+  padding = 16,
+): Camera {
+  const w = Math.max(1e-9, rect.maxX - rect.minX);
+  const h = Math.max(1e-9, rect.maxY - rect.minY);
+  const availW = Math.max(40, vp.width - padding * 2);
+  const availH = Math.max(40, vp.height - padding * 2);
+  const scale = Math.min(availW / w, availH / h);
+  return {
+    cx: (rect.minX + rect.maxX) / 2,
+    cy: (rect.minY + rect.maxY) / 2,
+    scale,
+  };
 }
 
 export function worldToScreen(cam: Camera, vp: Viewport, p: Point): Point {

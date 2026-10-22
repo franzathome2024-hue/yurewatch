@@ -8,19 +8,21 @@ import type { AppState } from '../state/store';
 import { badge, clear, el } from './dom';
 
 /**
- * The EEW panel. This is the one element that must be readable at a glance from
- * across a room, so it is the only place in the app that uses full-saturation
- * colour, oversized numerals and a hard border.
+ * EEW surface.
  *
- * Honesty rules encoded here:
- *  - 予報 / Forecast and 警報 / Warning are visually and textually distinct; a
+ * Normal conditions get a single thin strip (what was last checked, and whether
+ * anything is in effect). A real alert expands into a compact banner: the
+ * classification first, then the numbers, then the areas. The banner never
+ * covers the map, and it is the only place in the application that uses
+ * full-saturation colour.
+ *
+ * Honesty rules:
+ *  - 予報 (forecast) and 警報 (warning) are visually and textually distinct; a
  *    forecast never borrows the warning styling.
- *  - Simulated and test alerts get their own badge and refuse the red warning
- *    treatment.
- *  - A predicted intensity is always labelled as an estimate.
- *  - No countdown is invented; arrival times come from the source, per area.
- *  - The headline is shown in the active language with the other language
- *    underneath, so one screen reads correctly for both audiences.
+ *  - Simulated/test alerts get their own badge and never the red treatment.
+ *  - An unavailable source never renders as "no alert".
+ *  - No countdown is invented; arrival times are shown only when the source
+ *    supplies them, with the area they belong to.
  */
 export function createAlertPanel(): { el: HTMLElement; update: (s: AppState) => void } {
   const root = el('section', { class: 'alert', 'aria-live': 'polite', 'aria-atomic': 'false' });
@@ -38,171 +40,153 @@ export function createAlertPanel(): { el: HTMLElement; update: (s: AppState) => 
       root.classList.toggle('alert--sim', Boolean(alert?.simulated));
 
       if (!alert) {
-        renderIdle(root, state, offline);
+        renderStrip(root, state, offline);
         return;
       }
-      renderAlert(root, state, alert);
+      renderBanner(root, state, alert);
     },
   };
 }
 
-function renderIdle(root: HTMLElement, state: AppState, offline: boolean): void {
-  const head = el('div', { class: 'alert__head' },
-    el('span', { class: 'alert__kicker', text: t('alert.kicker') }),
-    badge(offline ? t('alert.badge.unknown') : t('alert.badge.waiting'), offline ? 'warn' : 'neutral'),
+/* ------------------------------------------------------------------ idle -- */
+
+function renderStrip(root: HTMLElement, state: AppState, offline: boolean): void {
+  const last = state.alertHistory[0];
+  const lastAt = last ? (last.issuedAt ?? last.receivedAt) : state.health.lastSuccessAt;
+
+  const strip = el('div', { class: 'strip' },
+    el('span', { class: 'strip__label', text: t('alert.strip.label') }),
+    offline
+      ? el('span', { class: 'strip__state strip__state--unknown', text: t('alert.strip.unknown') })
+      : el('span', { class: 'strip__state', text: t('alert.strip.none') }),
+    el('span', { class: 'strip__spacer' }),
+    offline
+      ? el('span', { class: 'strip__meta strip__meta--warn', text: t('alert.strip.offline') })
+      : lastAt !== null
+        ? el('span', { class: 'strip__meta', text: t('alert.strip.checked', { time: formatJstClock(lastAt) }) })
+        : null,
+    el('span', { class: 'strip__age', text: offline ? t('status.noData') : t('fresh.fresh') }),
   );
 
-  const lastAlert = state.alertHistory[0];
-  const body = el('div', { class: 'alert__idle' },
-    el('p', { class: 'alert__idleMain', text: offline ? t('alert.idle.offlineMain') : t('alert.idle.onlineMain') }),
-    el('p', { class: 'alert__note', text: offline ? t('alert.idle.offlineNote') : t('alert.idle.onlineNote') }),
-    lastAlert
-      ? el('p', { class: 'alert__meta' }, t('alert.idle.lastReceived', {
-          time: formatJst(lastAlert.issuedAt ?? lastAlert.receivedAt),
-          age: formatAge(lastAlert.issuedAt ?? lastAlert.receivedAt, state.now),
-        }))
-      : null,
-  );
-  root.append(head, body);
+  // The full statement stays in the accessibility tree: a strip is compact for
+  // the eye, not for a screen reader.
+  const detail = el('p', { class: 'srOnly', text: offline ? t('alert.idle.offlineMain') : t('alert.idle.onlineMain') });
+  root.append(strip, detail);
 }
 
-function renderAlert(root: HTMLElement, state: AppState, alert: EewAlert): void {
+/* ----------------------------------------------------------------- active -- */
+
+function renderBanner(root: HTMLElement, state: AppState, alert: EewAlert): void {
   const style = hasIntensity(alert.maxScaleTo) ? scaleStyle(alert.maxScaleTo) : null;
   const isForecast = alert.state === 'forecast';
   const isCancelled = alert.state === 'cancelled';
-  const isTest = alert.isTest;
   const sim = alert.simulated;
 
   root.classList.toggle('alert--forecast', isForecast);
   root.classList.toggle('alert--warning', !isForecast && !isCancelled);
 
-  const head = el('div', { class: 'alert__head' },
-    el('span', { class: 'alert__kicker', text: eewStateLabel(alert.state) }),
-    el('span', { class: 'alert__en', text: eewStateLabelSecondary(alert.state) }),
-    el('span', { class: 'alert__spacer' }),
-    alert.serial > 0 ? badge(t('alert.serial', { n: alert.serial }), 'neutral') : null,
+  // ---- header row: classification -----------------------------------
+  const head = el('div', { class: 'banner__head' },
+    badge(eewStateLabel(alert.state), isForecast ? 'warn' : isCancelled ? 'neutral' : 'danger', 'badge--class'),
+    el('span', { class: 'banner__alt', text: eewStateLabelSecondary(alert.state) }),
+    el('span', { class: 'banner__spacer' }),
+    alert.serial > 0 ? el('span', { class: 'banner__serial', text: t('alert.serial', { n: alert.serial }) }) : null,
     sim ? badge(t('demo.simBadge'), 'sim') : null,
-    isTest ? badge(t('alert.badge.test'), 'warn') : null,
+    alert.isTest ? badge(t('alert.badge.test'), 'warn') : null,
+    alert.issuedAt !== null
+      ? el('span', { class: 'banner__time', text: `${formatJst(alert.issuedAt)}` })
+      : null,
   );
 
-  // ---- headline: estimated intensity ---------------------------------
-  const headline = el('div', { class: 'alert__headline' });
+  // ---- body: numbers -------------------------------------------------
+  const body = el('div', { class: 'banner__body' });
+
   if (isCancelled) {
-    headline.appendChild(
-      el('div', { class: 'alert__cancelled' },
+    body.appendChild(
+      el('p', { class: 'banner__cancelled' },
         el('strong', { text: t('alert.cancelledTitle') }),
         el('span', { text: t('alert.cancelledNote') }),
       ),
     );
-  } else if (style) {
-    headline.appendChild(
-      el('div', { class: 'alert__scaleBlock', style: `--scale-color:${style.fill};--scale-text:${style.text}` },
-        el('span', { class: 'alert__scaleLabel', text: t('alert.scaleLabel') }),
-        el('span', { class: 'alert__scaleValue', text: style.label }),
-      ),
-    );
-    headline.appendChild(
-      el('div', { class: 'alert__facts' },
-        fact(t('alert.fact.epicenter'), alert.epicenter?.name ?? t('alert.epicenterUnknown')),
-        fact(t('alert.fact.magnitude'), formatMagnitude(alert.epicenter?.magnitude ?? -1)),
-        fact(t('alert.fact.depth'), formatDepth(alert.epicenter?.depthKm ?? -1)),
-      ),
-    );
   } else {
-    headline.appendChild(
-      el('div', { class: 'alert__facts' },
-        fact(t('alert.fact.epicenter'), alert.epicenter?.name ?? t('alert.epicenterUnknown')),
-        fact(t('alert.fact.magnitude'), formatMagnitude(alert.epicenter?.magnitude ?? -1)),
-        fact(t('alert.fact.depth'), formatDepth(alert.epicenter?.depthKm ?? -1)),
-        fact(t('alert.fact.intensity'), t('alert.value.noInfo')),
-      ),
+    const scale = el('div', {
+      class: 'banner__scale',
+      style: `--scale-color:${style?.fill ?? '#393E44'};--scale-text:${style?.text ?? '#F0F2F4'}`,
+    },
+      el('span', { class: 'banner__scaleLabel', text: t('alert.scaleLabel') }),
+      el('span', { class: 'banner__scaleValue', text: style ? style.label : t('meta.unknown') }),
     );
-  }
 
-  // ---- times ---------------------------------------------------------
-  const times = el('div', { class: 'alert__times' },
-    timeChip(t('alert.time.origin'), formatJst(alert.originTime), alert.originTime),
-    timeChip(t('alert.time.issued'), formatJst(alert.issuedAt), alert.issuedAt),
-    el('span', { class: 'alert__age', text: t('age.received', { age: formatAge(alert.issuedAt ?? alert.receivedAt, state.now) }) }),
-  );
+    const facts = el('dl', { class: 'banner__facts' },
+      fact(t('alert.fact.epicenter'), alert.epicenter?.name ?? t('alert.epicenterUnknown')),
+      fact(t('alert.fact.magnitude'), formatMagnitude(alert.epicenter?.magnitude ?? -1)),
+      fact(t('alert.fact.depth'), formatDepth(alert.epicenter?.depthKm ?? -1)),
+    );
 
-  const blocks: Array<HTMLElement | null> = [head, headline, times];
-
-  if (alert.epicenter?.provisional) {
-    blocks.push(el('p', { class: 'alert__flag' }, t('alert.provisional')));
-  }
-
-  // ---- arrival (source-provided only) --------------------------------
-  if (!isCancelled) {
+    // Source-provided arrival estimate only.
     const withArrival = alert.areas.filter((a) => a.arrivalTime !== null);
+    let arrival: HTMLElement | null = null;
     if (withArrival.length) {
       const soonest = withArrival.reduce((min, a) => (a.arrivalTime! < min.arrivalTime! ? a : min), withArrival[0]!);
       const past = soonest.arrivalTime! <= state.now;
-      blocks.push(
-        el('div', { class: 'alert__arrival' },
-          el('span', { class: 'alert__arrivalLabel', text: past ? t('alert.arrival.past') : t('alert.arrival.soonest') }),
-          el('span', { class: 'alert__arrivalValue', text: formatJstClock(soonest.arrivalTime) }),
-          el('span', { class: 'alert__arrivalArea', text: t('alert.arrival.source', { area: soonest.name }) }),
-          el('span', { class: 'alert__arrivalNote', text: t('alert.arrival.disclaimer') }),
-        ),
-      );
-    } else {
-      blocks.push(
-        el('div', { class: 'alert__arrival alert__arrival--none' },
-          el('span', { class: 'alert__arrivalLabel', text: t('alert.arrival.noneTitle') }),
-          el('span', { class: 'alert__arrivalArea', text: t('alert.arrival.noneBody') }),
-        ),
+      arrival = el('div', { class: 'banner__arrival' },
+        el('span', { class: 'banner__arrivalLabel', text: past ? t('alert.arrival.past') : t('alert.arrival.soonest') }),
+        el('span', { class: 'banner__arrivalValue', text: formatJstClock(soonest.arrivalTime) }),
+        el('span', { class: 'banner__arrivalArea', text: t('alert.arrival.source', { area: soonest.name }) }),
+        el('span', { class: 'banner__hint', text: t('alert.arrival.disclaimer') }),
       );
     }
+
+    body.append(scale, facts);
+    if (arrival) body.appendChild(arrival);
   }
 
   // ---- areas ---------------------------------------------------------
+  let areas: HTMLElement | null = null;
   if (alert.areas.length) {
-    const top = strongestAreas(alert, 6);
-    blocks.push(
-      el('div', { class: 'alert__areas' },
-        el('div', { class: 'alert__areasHead' },
-          el('span', { text: t('alert.areas.title', { n: alert.areas.length }) }),
-          el('span', { class: 'alert__areasNote', text: t('alert.areas.order') }),
-        ),
-        el('ul', { class: 'alert__areaList' },
-          ...top.map((a) => {
-            const s = scaleStyle(a.scaleTo);
-            const range = a.scaleFrom === a.scaleTo ? s.label : `${scaleStyle(a.scaleFrom).label}〜${s.label}`;
-            return el('li', { class: 'alert__area' },
-              el('span', { class: 'alert__areaDot', style: `background:${s.fill}` }),
-              el('span', { class: 'alert__areaName', text: a.name || a.pref }),
-              el('span', { class: 'alert__areaScale', text: range }),
-              el('span', { class: 'alert__areaKind', text: kindLabel(a.kindCode) }),
-            );
-          }),
-        ),
-        alert.areas.length > top.length
-          ? el('p', { class: 'alert__more', text: t('alert.areas.more', { n: alert.areas.length - top.length }) })
-          : null,
+    const top = strongestAreas(alert, 8);
+    areas = el('div', { class: 'banner__areas' },
+      el('span', { class: 'banner__areasTitle', text: t('alert.areas.title', { n: alert.areas.length }) }),
+      el('ul', { class: 'banner__areaList' },
+        ...top.map((a) => {
+          const s = scaleStyle(a.scaleTo);
+          const range = a.scaleFrom === a.scaleTo ? s.label : `${scaleStyle(a.scaleFrom).label}–${s.label}`;
+          return el('li', { class: 'areaPill' },
+            el('span', { class: 'areaPill__dot', style: `background:${s.fill}`, 'aria-hidden': 'true' }),
+            el('span', { class: 'areaPill__name', text: a.name || a.pref }),
+            el('span', { class: 'areaPill__scale', text: range }),
+            kindLabel(a.kindCode) ? el('span', { class: 'areaPill__kind', text: kindLabel(a.kindCode) }) : null,
+          );
+        }),
       ),
+      alert.areas.length > top.length
+        ? el('span', { class: 'banner__more', text: t('alert.areas.more', { n: alert.areas.length - top.length }) })
+        : null,
     );
   } else if (!isCancelled) {
-    blocks.push(el('p', { class: 'alert__flag' }, t('alert.areas.missing')));
+    areas = el('p', { class: 'banner__flag', text: t('alert.areas.missing') });
   }
 
-  // ---- footer note ---------------------------------------------------
-  blocks.push(el('p', { class: 'alert__disclaimer' }, sim ? t('alert.sim') : t('alert.disclaimer')));
+  // ---- footnotes -----------------------------------------------------
+  const flags: HTMLElement[] = [];
+  if (alert.epicenter?.provisional) flags.push(el('p', { class: 'banner__flag' }, t('alert.provisional')));
 
-  root.append(...(blocks.filter(Boolean) as HTMLElement[]));
+  const note = el('p', { class: 'banner__note', text: sim ? t('alert.sim') : t('alert.disclaimer') });
+
+  const age = t('age.received', { age: formatAge(alert.issuedAt ?? alert.receivedAt, state.now) });
+  const times = el('div', { class: 'banner__times' },
+    el('span', { text: `${t('alert.time.origin')} ${formatJst(alert.originTime)}` }),
+    el('span', { text: `${t('alert.time.issued')} ${formatJst(alert.issuedAt)}` }),
+    el('span', { class: 'banner__age', text: age }),
+  );
+
+  root.append(...([head, body, areas, ...flags, times, note].filter(Boolean) as HTMLElement[]));
 }
 
 function fact(label: string, value: string): HTMLElement {
-  return el('div', { class: 'alert__fact' },
-    el('span', { class: 'alert__factLabel', text: label }),
-    el('span', { class: 'alert__factValue', text: value }),
-  );
-}
-
-function timeChip(label: string, value: string, at: number | null): HTMLElement {
-  return el('span', { class: 'alert__time' },
-    el('span', { class: 'alert__timeLabel', text: label }),
-    el('span', { class: 'alert__timeValue', text: at === null ? t('meta.unknown') : value }),
+  return el('div', { class: 'banner__fact' },
+    el('dt', { text: label }),
+    el('dd', { text: value }),
   );
 }
 

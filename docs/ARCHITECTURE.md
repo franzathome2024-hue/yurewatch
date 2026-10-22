@@ -217,6 +217,8 @@ script prefers 35+.
 - `prefers-reduced-motion` disables the EEW pulse (canvas animation gate).
 - Iconography is inline SVG: emoji/symbol glyphs (`⌖`, `＋`) render as tofu on
   some Android system fonts — found in a screenshot review and replaced.
-- Layout: three-column on desktop, one rail + map + tab bar on phones
-  (≤1120 px), with the alert panel always above the fold so a warning is never
-  behind a menu.
+- Layout (v0.2): header + status strip + alert slot above a map-first work area;
+  a single 372 px instrument sidebar on desktop, a two-state bottom sheet below
+  900 px. The alert area is always above the fold and never behind a menu, and
+  the map keeps > 55 % of the work area at every target viewport. Rationale and
+  the verification rules are in [`UI.md`](UI.md).

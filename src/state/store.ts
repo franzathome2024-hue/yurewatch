@@ -261,6 +261,22 @@ export function freshnessOf(at: number | null, now: number): Freshness {
   return 'stale';
 }
 
+/**
+ * Freshness as the user should read it.
+ *
+ * `freshnessOf()` only knows the timestamp. If the transport has already told us
+ * updates have stopped, the data must not be labelled "up to date" just because
+ * it arrived less than a minute ago — a live-looking indicator on a stalled feed
+ * is exactly the kind of misleading status this app must not show.
+ */
+export function effectiveFreshness(state: AppState): Freshness {
+  const byAge = freshnessOf(state.health.lastSuccessAt, state.now);
+  const conn = state.health.state;
+  if (conn === 'stale' && (byAge === 'fresh' || byAge === 'aging' || byAge === 'unknown')) return 'stale';
+  if (conn === 'offline' && byAge === 'fresh') return 'stale';
+  return byAge;
+}
+
 export function freshnessLabel(f: Freshness): string {
   switch (f) {
     case 'fresh':

@@ -31,12 +31,16 @@ beforeEach(() => {
 });
 
 describe('alert panel', () => {
-  it('shows a neutral standby state when there is no alert', () => {
+  it('shows a compact, truthful standby strip when there is no alert', () => {
     const panel = createAlertPanel();
     panel.update(initialState('live', T));
-    expect(panel.el.textContent).toContain('待機中');
-    expect(panel.el.textContent).toContain('緊急地震速報は発表されていません');
+    // The visible strip is one line; the full sentence stays for screen readers.
+    expect(panel.el.querySelector('.strip')?.textContent).toContain('受信なし');
+    expect(panel.el.querySelector('.strip')?.textContent).toContain('緊急地震速報');
+    expect(panel.el.querySelector('.srOnly')?.textContent).toContain('緊急地震速報は発表されていません');
     expect(panel.el.dataset.state).toBe('idle');
+    // No fabricated green "all clear" and no giant empty card.
+    expect(panel.el.querySelectorAll('.banner__body').length).toBe(0);
   });
 
   it('does not claim "no alert" while offline', () => {
@@ -127,7 +131,6 @@ describe('event list', () => {
     expect(text).toContain('熊本県熊本地方');
     expect(text).toContain('M2.9');
     expect(text).toContain('深さ10km');
-    expect(text).toContain('各地の震度に関する情報');
     expect(list.el.querySelectorAll('.feed__item')).toHaveLength(1);
   });
 
@@ -192,10 +195,13 @@ describe('details panel', () => {
 describe('header', () => {
   it('distinguishes live from demo mode', () => {
     const header = createHeader();
-    header.update(initialState('live', T));
-    expect(header.el.textContent).toContain('LIVE');
-    header.update({ ...initialState('demo', T), mode: 'demo', health: { ...initialState('demo', T).health, state: 'demo' } });
-    expect(header.el.textContent).toContain('DEMO');
+    const live = reduce(initialState('live', T), { type: 'connection', state: 'live', at: T });
+    header.update(live);
+    expect(header.el.textContent).toContain('ライブ接続');
+    expect(header.el.textContent).not.toContain('デモ');
+    const demoState = reduce(initialState('demo', T), { type: 'connection', state: 'demo', at: T });
+    header.update({ ...demoState, mode: 'demo' });
+    expect(header.el.textContent).toContain('デモ');
   });
 
   it('surfaces connection problems', () => {

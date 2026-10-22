@@ -131,7 +131,7 @@ async function main() {
   await demoPage.waitForTimeout(3_500);
   check('demo mode shows the SIMULATION banner', await demoPage.locator('.simBanner').isVisible());
   check('demo alert panel is marked SIMULATION', (await demoPage.locator('.alert').textContent()).includes('SIMULATION'));
-  check('demo mode header says DEMO', (await demoPage.locator('.chip--mode').textContent()).includes('DEMO'));
+  check('demo mode is stated in the status strip', (await demoPage.locator('.modeChip').textContent()).includes('DEMO'));
 
   // --- 4. lifecycle hooks the APK calls -----------------------------------
   const hooks = await demoPage.evaluate(() => ({
@@ -189,8 +189,8 @@ async function main() {
   const initialLang = await langPage.evaluate(() => ({
     lang: document.documentElement.lang,
     active: document.querySelector('.langSwitch__btn.is-active')?.textContent,
-    kicker: document.querySelector('.alert__kicker')?.textContent ?? '',
-    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+    kicker: document.querySelector('.strip__label')?.textContent ?? '',
+    tab: document.querySelector('.sideTab[data-view="list"]')?.textContent ?? '',
   }));
   check('fresh install starts in Japanese', initialLang.lang === 'ja' && initialLang.active === '日本語', JSON.stringify(initialLang));
   check('device language is ignored', initialLang.kicker.includes('緊急地震速報'), initialLang.kicker);
@@ -200,13 +200,13 @@ async function main() {
   const afterSwitch = await langPage.evaluate(() => ({
     lang: document.documentElement.lang,
     active: document.querySelector('.langSwitch__btn.is-active')?.textContent,
-    kicker: document.querySelector('.alert__kicker')?.textContent ?? '',
-    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+    kicker: document.querySelector('.strip__label')?.textContent ?? '',
+    tab: document.querySelector('.sideTab[data-view="list"]')?.textContent ?? '',
     stored: localStorage.getItem('yurewatch.locale'),
     title: document.title,
     mapLabel: document.querySelector('.map__canvas')?.getAttribute('aria-label') ?? '',
   }));
-  check('switching to English updates the whole UI immediately', afterSwitch.lang === 'en' && afterSwitch.tab === 'Quakes' && afterSwitch.kicker.includes('Earthquake Early Warning'), JSON.stringify(afterSwitch));
+  check('switching to English updates the whole UI immediately', afterSwitch.lang === 'en' && afterSwitch.tab === 'Recent earthquakes' && afterSwitch.kicker.includes('EEW'), JSON.stringify(afterSwitch));
   check('switching to English localizes accessibility labels', afterSwitch.mapLabel.startsWith('Map of Japan'), afterSwitch.mapLabel);
   check('language choice is persisted', afterSwitch.stored === 'en', String(afterSwitch.stored));
 
@@ -215,18 +215,18 @@ async function main() {
   await langPage.waitForSelector('.app', { timeout: 15_000 });
   const afterReload = await langPage.evaluate(() => ({
     lang: document.documentElement.lang,
-    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+    tab: document.querySelector('.sideTab[data-view="list"]')?.textContent ?? '',
   }));
-  check('language choice survives a restart', afterReload.lang === 'en' && afterReload.tab === 'Quakes', JSON.stringify(afterReload));
+  check('language choice survives a restart', afterReload.lang === 'en' && afterReload.tab === 'Recent earthquakes', JSON.stringify(afterReload));
 
   // And back to Japanese.
   await langPage.click('.langSwitch__btn[data-locale="ja"]');
   await langPage.waitForTimeout(400);
   const backToJa = await langPage.evaluate(() => ({
     lang: document.documentElement.lang,
-    tab: document.querySelector('.tabbar__label')?.textContent ?? '',
+    tab: document.querySelector('.sideTab[data-view="list"]')?.textContent ?? '',
   }));
-  check('switching back to Japanese works', backToJa.lang === 'ja' && backToJa.tab === '地震情報', JSON.stringify(backToJa));
+  check('switching back to Japanese works', backToJa.lang === 'ja' && backToJa.tab === '最近の地震', JSON.stringify(backToJa));
 
   // No horizontal overflow at phone width in either language.
   await langPage.click('.langSwitch__btn[data-locale="en"]');
@@ -238,6 +238,103 @@ async function main() {
   check('English layout does not overflow horizontally on a phone', overflow.scrollW <= overflow.clientW + 1, JSON.stringify(overflow));
 
   await langCtx.close();
+
+  /* ---- layout and map framing at every target viewport --------------- */
+  const targets = [
+    [360, 800, 'phone-small'],
+    [390, 844, 'phone'],
+    [430, 932, 'phone-large'],
+    [768, 1024, 'tablet'],
+    [1280, 800, 'desktop'],
+    [1440, 900, 'desktop-wide'],
+  ];
+  for (const [w, h, label] of targets) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: 'ja-JP' });
+    const page = await ctx.newPage();
+    const pageErrors = [];
+    page.on('pageerror', (e) => pageErrors.push(e.message));
+    await page.goto(base, { waitUntil: 'load' });
+    await page.waitForSelector('.app', { timeout: 15_000 });
+    await page.waitForTimeout(1_500);
+    const layout = await page.evaluate(() => {
+      const map = window.__yurewatch?.map?.() ?? null;
+      const pane = document.querySelector('.mapPane')?.getBoundingClientRect();
+      const work = document.querySelector('.work')?.getBoundingClientRect();
+      const side = document.querySelector('.side')?.getBoundingClientRect();
+      return {
+        mapShare: map && work ? (pane.width * pane.height) / (work.width * work.height) : 0,
+        japanVisible: map ? map.primaryVisible : false,
+        japanHeight: map ? map.primary.h / map.viewport.height : 0,
+        sideWidth: side ? side.width : 0,
+        hOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        touchTargets: Array.from(document.querySelectorAll('.mapBtn, .sideTab, .langSwitch__btn'))
+          .map((el) => el.getBoundingClientRect().height)
+          .filter((n) => n > 0),
+      };
+    });
+    const minTarget = layout.touchTargets.length ? Math.min(...layout.touchTargets) : 0;
+    check(
+      `${label} (${w}x${h}): Japan fully framed`,
+      layout.japanVisible && layout.japanHeight > 0.5,
+      `japan fills ${(layout.japanHeight * 100).toFixed(0)}% of map height`,
+    );
+    check(
+      `${label}: map dominates the workspace`,
+      layout.mapShare > 0.55,
+      `${(layout.mapShare * 100).toFixed(0)}% of the work area`,
+    );
+    check(`${label}: no horizontal overflow`, layout.hOverflow <= 1, `overflow ${layout.hOverflow}px`);
+    check(
+      `${label}: interactive targets >= 30 px`,
+      minTarget >= 30,
+      `smallest ${minTarget.toFixed(0)}px`,
+    );
+    check(`${label}: no page errors`, pageErrors.length === 0, pageErrors.join(' | ').slice(0, 120));
+    await ctx.close();
+  }
+
+  /* ---- state coverage: cancelled, offline, stale, info panel -------- */
+  const stateCtx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'ja-JP' });
+  const statePage = await stateCtx.newPage();
+  await statePage.goto(`${base}?demo=cancelled`, { waitUntil: 'load' });
+  await statePage.waitForSelector('.alert--cancelled', { timeout: 20_000 });
+  const cancelled = await statePage.evaluate(() => ({
+    state: document.querySelector('.alert')?.dataset.state,
+    text: document.querySelector('.alert')?.textContent ?? '',
+  }));
+  check('cancelled alert is not presented as active', cancelled.state === 'cancelled' && cancelled.text.includes('取消'), cancelled.state);
+  check('cancellation keeps the "not a safety all-clear" wording', cancelled.text.includes('揺れが無かった'));
+
+  await statePage.goto(`${base}?demo=disconnect`, { waitUntil: 'load' });
+  await statePage.waitForSelector('.app', { timeout: 15_000 });
+  const offlineSeen = await statePage
+    .waitForFunction(() => document.querySelector('.conn')?.dataset.conn === 'offline', { timeout: 25_000 })
+    .then(() => true)
+    .catch(() => false);
+  const offlineText = await statePage.evaluate(() => ({
+    conn: document.querySelector('.conn__text')?.textContent,
+    alert: document.querySelector('.alert__state, .strip__state--unknown')?.textContent,
+    fresh: document.querySelector('.statusStrip__fresh')?.textContent,
+  }));
+  check('offline is stated in words, not only a dot', offlineSeen && /オフライン|Offline/.test(offlineText.conn ?? ''), JSON.stringify(offlineText));
+  check('offline also marks the alert status as unconfirmed', /状態不明/.test(offlineText.alert ?? ''), String(offlineText.alert));
+
+  await statePage.goto(`${base}?demo=stale`, { waitUntil: 'load' });
+  await statePage.waitForSelector('.app', { timeout: 15_000 });
+  const staleSeen = await statePage
+    .waitForFunction(() => document.querySelector('.statusStrip__fresh')?.dataset.freshness === 'stale', { timeout: 25_000 })
+    .then(() => true)
+    .catch(() => false);
+  check('stale data is labelled as stale in the status strip', staleSeen);
+
+  const infoTab = statePage.locator('.sideTab[data-view="info"]');
+  await infoTab.click();
+  await statePage.waitForTimeout(400);
+  const infoText = await statePage.locator('.info').textContent();
+  check('info panel exposes source status and settings', /接続とデータの鮮度/.test(infoText) && /言語/.test(infoText), infoText.slice(0, 60));
+  check('demo controls are separated into a developer group', /開発者向け/.test(infoText));
+  await stateCtx.close();
+
   await browser.close();
   server?.close();
 

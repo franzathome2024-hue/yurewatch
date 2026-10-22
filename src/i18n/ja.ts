@@ -124,6 +124,7 @@ export const ja = {
   'feed.empty.note': '受信すると自動的にこの一覧へ追加されます。',
   'feed.badge.preliminary': '暫定',
   'feed.badge.sim': 'SIM',
+  'feed.headScale': '最大震度',
   'feed.meta.depth': '深さ{depth}',
   'feed.name.unknown': '震央不明',
   'feed.aria.select': '{name} {time} の詳細を表示',
@@ -187,8 +188,8 @@ export const ja = {
 
   /* ---------------- NIED ---------------- */
   'nied.sectionTitle': 'NIED リアルタイム震度',
-  'nied.subtitle': '未接続（v0.1 の制限）',
-  'nied.body1': 'v0.1 では未実装です。推測や代替データで埋めることはしていません。',
+  'nied.subtitle': '未接続',
+  'nied.body1': 'この版では未実装です。推測や代替データで埋めることはしていません。',
   'nied.body2':
     '防災科学技術研究所のリアルタイム震度（長周期地震動モニタ）は、公式に提供されている機械可読 API が確認できていないため、本バージョンでは接続していません。利用条件を確認のうえ、データ提供元と合意できた場合に実装します。',
   'nied.body3':
@@ -197,6 +198,7 @@ export const ja = {
   /* ---------------- diagnostics ---------------- */
   'diag.sectionTitle': '接続とデータの鮮度',
   'diag.subtitle': 'ソース・タイムスタンプ・エラー',
+  'diag.classification': '種別',
   'diag.mode': 'モード',
   'diag.mode.live': 'LIVE（公開データ）',
   'diag.mode.demo': 'DEMO（模擬データ）',
@@ -279,6 +281,66 @@ export const ja = {
     '画面の読み込みに失敗した可能性があります。ビルド済みの単一ファイル版（dist/yurewatch.html）を開くか、アプリを再起動してください。',
   'boot.fatal': '起動できませんでした: {message} アプリを再起動してください。',
   'boot.noscript': 'YureWatch は JavaScript が必要です。ブラウザの設定で有効にしてください。',
+
+  /* ---------------- v0.2 shell ---------------- */
+  'app.context': '日本の地震情報',
+  'nav.label': '表示切り替え',
+  'nav.map': '地図',
+  'nav.list': '地震情報',
+  'nav.detail': '詳細',
+  'nav.info': '情報',
+
+  'status.source': 'P2P地震情報 v2（気象庁情報の中継）',
+  'status.lastUpdate': '最終更新 {time}',
+  'status.mode.live': 'LIVE',
+  'status.mode.demo': 'DEMO',
+  'status.retry': '再取得',
+  'status.noData': 'データ取得不可',
+  'status.receivedAt': '受信 {time}',
+
+  'alert.strip.label': '緊急地震速報',
+  'alert.strip.none': '受信なし',
+  'alert.strip.unknown': '状態不明（未接続）',
+  'alert.strip.checked': '最終確認 {time}',
+  'alert.strip.offline': '接続が切れているため確認できません',
+  'alert.hatched': '震源が推定できないため、主要動の到達予測は表示していません',
+
+  'map.legend': '凡例',
+  'map.legendTitle': '地図の見方',
+  'map.legendIntensity': '震度（マーカーの色と数字）',
+  'map.legendEewMarker': 'EEW 震源（予測・揺れの前に発表）',
+  'map.legendQuakeMarker': '地震情報の震央（観測後の発表）',
+  'map.legendSelected': '選択中の地震',
+  'map.legendUnavailable': '震度分布の重ね表示は提供していません',
+  'map.controlsLabel': '地図の操作',
+
+  'sheet.label': '地震情報パネル',
+  'sheet.hintCollapse': 'タップして地図を広げる',
+  'sheet.peekHint': 'タップして地震情報を開く',
+  'sheet.peekEmpty': '地震情報がまだありません',
+  'sheet.expand': 'パネルを広げる',
+  'sheet.collapse': 'パネルを縮める',
+  'sheet.peekSummary': '{name} {magnitude}・{time}',
+
+  'list.title': '最近の地震',
+  'list.originLabel': '発生',
+  'list.reportedLabel': '発表',
+
+  'set.title': '設定',
+  'set.sectionDisplay': '表示',
+  'set.language': '言語',
+  'set.languageHelp': '初期値は日本語です。選択は保存されます。',
+  'set.sound': '警報音',
+  'set.soundOn': 'ON',
+  'set.soundOff': 'OFF',
+  'set.soundHelp': '警報を受信したときのみ鳴ります。デモでは初期状態で鳴りません。',
+  'set.sectionSource': 'データ',
+  'set.sourceHelp': 'ライブ接続は P2P地震情報 JSON API v2（気象庁の情報を中継）を使用します。',
+  'set.sectionDev': '開発者向け',
+  'set.demo': 'デモ / 模擬データ',
+  'set.sectionAbout': 'このアプリについて',
+  'set.version': 'バージョン {version}',
+  'set.attribution': '地図データ: Natural Earth（パブリックドメイン）',
 } as const;
 
 export type MessageKey = keyof typeof ja;

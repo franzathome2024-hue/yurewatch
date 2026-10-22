@@ -1,8 +1,13 @@
-# YureWatch — Japan Earthquake & EEW Viewer (v0.1.1)
+# YureWatch — Japan Earthquake & EEW Viewer (v0.2.0)
 
 A dark, map-first viewer for **Japan's earthquake information, Earthquake Early
 Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installable
 **Android APK** and as a single-file web build.
+
+v0.2 is a complete interface rebuild: the map now owns the screen, the alert area
+is a thin strip until a real alert exists, and phones get a purpose-built layout
+instead of a squeezed desktop one. See [docs/UI.md](docs/UI.md) for the layout
+decisions and the constraints the UI is verified against.
 
 The interface is **bilingual: Japanese (default) and English**, switched from the
 header and remembered across restarts. A fresh install opens in Japanese whatever
@@ -21,6 +26,7 @@ setting before they can read a warning.
 ## Contents
 
 - [What it does](#what-it-does)
+- [The interface](#the-interface)
 - [Screenshots](#screenshots)
 - [Install / run](#install--run)
 - [Languages](#languages)
@@ -29,7 +35,7 @@ setting before they can read a warning.
 - [Data sources & honesty rules](#data-sources--honesty-rules)
 - [Architecture](#architecture)
 - [Tests](#tests)
-- [Limitations of v0.1.1](#limitations-of-v011)
+- [Limitations](#limitations)
 - [Attribution & licensing](#attribution--licensing)
 - [Relationship to the reference project](#relationship-to-the-reference-project)
 
@@ -37,20 +43,51 @@ setting before they can read a warning.
 
 ## What it does
 
-| Area | v0.1 behaviour |
+| Area | v0.2 behaviour |
 | --- | --- |
-| **Map** | Canvas-rendered Japan (47 prefectures, own projection code, Natural Earth geometry). Drag to pan, pinch/scroll/double-tap to zoom, keyboard arrows + `+`/`-`/`Home`. Tap an epicentre to select it. |
-| **Epicentres** | Marker size scales with magnitude, colour and inner numeral with observed JMA intensity, dashed ring for preliminary reports, fade with age, white selection ring. Live EEW shows a pulsing red crosshair (prediction, not an observation). |
-| **Event feed** | Newest-first list of JMA earthquake reports, merged across revisions (震度速報 → 震源情報 → 各地の震度), with magnitude, depth, intensity, report type, age and revision count. |
-| **Event detail** | Max intensity, hypocentre, coordinates, issue/receive times, tsunami statement, per-station observations, and the telegram provenance. |
-| **EEW panel** | High-contrast state machine: idle / 予報 / 警報 / 続報 / 取消 / unavailable. Shows predicted max intensity, source areas with predicted ranges and 主要動 arrival state, and source-supplied arrival times — never an invented countdown. |
-| **Connection health** | Live/stale/offline/degraded chip, source timestamps, freshness label, and a diagnostics panel with batch counts, rejected records and the last error. |
+| **Layout** | Map-first. Desktop: map + one 372 px instrument sidebar (list / details / info). Phones: map everywhere, panels in a two-state bottom sheet that opens as a 64 px peek. |
+| **Map** | Canvas-rendered Japan (47 prefectures, own projection code, Natural Earth geometry). Drag to pan, pinch/scroll/double-tap to zoom, keyboard arrows + `+`/`-`/`Home`. Tap an epicentre to select it. The initial framing fits the main islands and Okinawa; detached islets stay reachable by panning. |
+| **Epicentres** | Marker size scales with magnitude, colour and inner numeral with observed JMA intensity, dashed ring for preliminary reports, fade with age, white selection ring. A live EEW shows a red crosshair (prediction, not an observation). |
+| **Alert area** | A 30 px strip ("緊急地震速報 受信なし") when nothing is in effect; expands into a banner only for forecast / warning / update / cancelled / unavailable, with the classification first. |
+| **Event list** | One row per event on a shared grid — intensity, epicentre, magnitude, age — aligned so values can be compared down the column. |
+| **Event detail** | Max intensity, hypocentre, coordinates, origin/issued/received times (kept distinct), tsunami statement, per-station observations, source provenance. Unknown values print `—`, never `0`. |
+| **Connection health** | Connection state in the header *in words*, data freshness in the status strip, and a diagnostics panel (batches, rejected records, duplicates, last error) inside the info panel. A stalled transport is never labelled "up to date" just because the last packet was recent. |
 | **Tsunami** | Latest 津波予報 with grades, areas and heights (progressive disclosure). |
-| **Demo mode** | Nine deterministic scenarios, all visibly marked `SIMULATION`. |
-| **Languages** | Japanese (default) and English, switchable from the header, applied instantly to every panel, label, error and accessibility name, and persisted through Android `SharedPreferences`. |
+| **Map legend** | Collapsed button on the map; explains marker shapes as well as intensity colours, and says explicitly that no intensity-distribution map is provided. |
+| **Demo mode** | Nine deterministic scenarios, all visibly marked `SIMULATION`, kept in a separate "開発者向け" group. |
+| **Languages** | Japanese (default) and English, switchable from the header and the info panel, applied instantly to every panel, label, column header, error and accessibility name, and persisted through Android `SharedPreferences`. |
 | **Android** | Single APK, no local server, no localhost, back gesture, lifecycle-aware polling, HTTPS-only native bridge. |
 
 ---
+
+## The interface
+
+The v0.2 shell is three fixed bands and a working area:
+
+```
+header       brand · connection (in words) · JST clock · 日本語|English · info
+status strip LIVE/DEMO · source · last update · freshness
+alert slot   one line while nothing is in effect; a banner when it is
+work area    map (+ legend, zoom, recenter)  |  list / details / info
+```
+
+Design rules the layout is held to (full rationale in [docs/UI.md](docs/UI.md)):
+
+- **Map first.** The map takes more than half of the working area at every target
+  viewport (measured 66–89 %), and Japan is framed without panning on first
+  launch.
+- **No empty alarm furniture.** A large "all clear" card is not shown; the idle
+  state is a single strip, because a permanent big green box is decoration that
+  teaches people to stop looking at it.
+- **Nothing is invented.** Unknown intensity, depth or time prints `—`/`未発表`;
+  origin, issue and receive times are labelled as different things; a preliminary
+  report is marked preliminary.
+- **States are legible without colour**, and cancelled/unavailable never read as
+  "safe".
+- **Phones are designed, not squeezed.** Below 900 px the map is the screen and
+  the panels live in a bottom sheet that starts as a one-line peek.
+- **The legend explains shapes, not just colours**, and states that no
+  intensity-distribution map is offered.
 
 ## Screenshots
 
@@ -59,25 +96,29 @@ embeds — by `node tools/screenshots.mjs`, so a shot can never show a UI the
 release does not have. Demo shots are labelled `SIMULATION` because they are
 simulations.
 
-| EEW warning (demo) | EEW updated (demo) |
+| Live (desktop) | EEW warning (demo) |
 | --- | --- |
-| ![](docs/screenshots/desktop-eew-warning.png) | ![](docs/screenshots/desktop-eew-updated.png) |
+| ![](docs/screenshots/desktop-live.png) | ![](docs/screenshots/desktop-eew-warning.png) |
 
-| Historical feed (demo) | EEW cancelled (demo) |
+| Earthquake details | Info / diagnostics |
 | --- | --- |
-| ![](docs/screenshots/desktop-history.png) | ![](docs/screenshots/desktop-eew-cancelled.png) |
+| ![](docs/screenshots/desktop-detail.png) | ![](docs/screenshots/desktop-info.png) |
+
+| Map legend | EEW cancelled (demo) |
+| --- | --- |
+| ![](docs/screenshots/desktop-legend.png) | ![](docs/screenshots/desktop-eew-cancelled.png) |
 
 | Phone, live (ja) | Phone, EEW warning (demo, ja) |
 | --- | --- |
-| <img src="docs/screenshots/mobile-live.png" width="320" alt="Phone layout, live mode, Japanese" /> | <img src="docs/screenshots/mobile-eew-warning.png" width="320" alt="Phone layout, EEW warning demo, Japanese" /> |
+| <img src="docs/screenshots/mobile-live.png" width="300" alt="Phone layout, live mode, Japanese" /> | <img src="docs/screenshots/mobile-eew-warning.png" width="300" alt="Phone layout, EEW warning demo, Japanese" /> |
+
+| Phone, panel expanded | Tablet, live |
+| --- | --- |
+| <img src="docs/screenshots/mobile-list.png" width="300" alt="Phone layout with the panel expanded" /> | <img src="docs/screenshots/tablet-live.png" width="300" alt="Tablet portrait layout, live mode" /> |
 
 | English, live | English, EEW warning (demo) |
 | --- | --- |
 | ![](docs/screenshots/en-desktop-live.png) | ![](docs/screenshots/en-desktop-eew-warning.png) |
-
-| Phone, live (English) |
-| --- |
-| <img src="docs/screenshots/en-mobile-live.png" width="320" alt="Phone layout, live mode, English" /> |
 
 ---
 
@@ -357,10 +398,10 @@ Key decisions (full rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md))
 ## Tests
 
 ```bash
-npm test                  # 184 unit tests (vitest, jsdom)
+npm test                  # 203 unit tests (vitest, jsdom)
 npm run typecheck         # tsc --noEmit, strict
 npm run build             # tsc + vite + single-file inliner (+ external-ref check)
-node tools/verify-web.mjs # 26 browser integration checks (needs playwright)
+node tools/verify-web.mjs # 63 browser integration checks (needs playwright)
 node tools/screenshots.mjs # regenerates docs/screenshots/ from dist/
 bash tools/build-apk.sh   # produces a signed, verified APK
 ```
@@ -379,8 +420,9 @@ Coverage by area:
 | `tests/liveFeed.test.ts` | Polling cadence, rate-limit budget, HTTP/network/JSON failures, backoff, stale watchdog, recency gating. |
 | `tests/data.test.ts` | The 47-prefecture table and the map geometry cannot drift apart. |
 | `tests/ui.test.ts` | Panel rendering: warning vs forecast wording, offline wording, SIMULATION labels, provenance. |
+| `tests/uiShell.test.ts` | v0.2 shell: mount order (header, strip, alert, map, sidebar), view switching, sheet peek/full cycle keeping the selection, sheet summary line, honest freshness (stalled transport ≠ "up to date"), strip vs banner, legend content in both languages, info-panel ordering (status → … → developer tools → about). |
 | `tests/i18n.test.ts` | Catalog parity (keys + placeholders), Japanese default even on an `en-US` device, persistence, instant switching, locale-aware JST formatting, intensity vocabulary, and a full UI re-render on switch. |
-| `tools/verify-web.mjs` | Real Chromium: boot, painted canvas, **Android bridge contract**, demo labelling, lifecycle hooks, back gesture, Japanese default, English switching, persistence across reload, accessibility-label translation, no horizontal overflow in English. |
+| `tools/verify-web.mjs` | Real Chromium: boot, painted canvas, **Android bridge contract**, demo labelling, lifecycle hooks, back gesture, Japanese default, English switching, persistence across reload, accessibility-label translation, no horizontal overflow in English, **plus v0.2 layout measurements at 360×800 / 390×844 / 430×932 / 768×1024 / 1280×800 / 1440×900** (Japan fully framed, map > 55 % of the work area, no overflow, touch targets ≥ 30 px) **and the cancelled / offline / stale / info-panel states**. |
 
 `tools/verify-web.mjs` fakes `YureWatchNative` with the same
 `request(id, url, timeoutMs)` → `__yurewatchNativeResolve(id, json)` flow as
@@ -391,7 +433,7 @@ remains a manual check.**
 
 ---
 
-## Limitations of v0.1.1
+## Limitations
 
 - **Not a safety device.** No guarantee of delivery, ordering or timeliness;
   treat every estimate as provisional.

@@ -4,7 +4,10 @@ import {
   clampCamera,
   defaultZoomLimits,
   fitBounds,
+  PRIMARY_VIEW_BOUNDS,
   panBy,
+  project,
+  worldToScreen,
   zoomAt,
   type Camera,
   type Point,
@@ -116,7 +119,7 @@ export class MapView {
       // Fit on first layout *and* on every layout change until the operator
       // takes control. Panels above the map reflow when an EEW arrives, and
       // refitting keeps Japan framed instead of leaving it small and off-centre.
-      this.camera = fitBounds(JAPAN_BOUNDS, this.viewport, 16);
+      this.camera = this.fitJapan();
     } else {
       this.camera = clampCamera(this.camera, this.viewport, this.limits);
     }
@@ -132,9 +135,22 @@ export class MapView {
     this.requestFrame();
   }
 
+  /**
+   * Framing for the initial view and for "show all of Japan".
+   *
+   * Fits the main islands plus Okinawa (PRIMARY_VIEW_BOUNDS). Deliberately not
+   * the full dataset bbox: that contains detached islets (Okinotorishima,
+   * Minamitorishima) whose inclusion shrinks the mainland to a strip. The
+   * detached shapes stay reachable by panning/zooming, and the zoom limits are
+   * still derived from the whole geometry so nothing becomes unreachable.
+   */
+  private fitJapan(): Camera {
+    return fitBounds(PRIMARY_VIEW_BOUNDS, this.viewport, 18);
+  }
+
   recenter(): void {
     this.userAdjusted = false;
-    this.camera = fitBounds(JAPAN_BOUNDS, this.viewport, 16);
+    this.camera = this.fitJapan();
     this.dirty = true;
     this.requestFrame();
     this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
@@ -159,6 +175,37 @@ export class MapView {
     this.camera = clampCamera({ cx: x, cy: y, scale }, this.viewport, this.limits);
     this.dirty = true;
     this.requestFrame();
+  }
+
+  /** Diagnostics for QA: what the camera is doing and where Japan landed. */
+  debugState(): {
+    viewport: { width: number; height: number };
+    scale: number;
+    fitRatio: number;
+    /** Screen bounds of the full dataset (includes detached islets). */
+    japan: MapScene['japanBounds'] | null;
+    /** Screen bounds of the primary region (main islands + Okinawa). */
+    primary: MapScene['japanBounds'] | null;
+    primaryVisible: boolean;
+  } {
+    const fit = fitBounds(JAPAN_BOUNDS, this.viewport);
+    const nw = project({ lon: PRIMARY_VIEW_BOUNDS.west, lat: PRIMARY_VIEW_BOUNDS.north });
+    const se = project({ lon: PRIMARY_VIEW_BOUNDS.east, lat: PRIMARY_VIEW_BOUNDS.south });
+    const a = worldToScreen(this.camera, this.viewport, nw);
+    const b = worldToScreen(this.camera, this.viewport, se);
+    const primary = { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
+    return {
+      viewport: { width: this.viewport.width, height: this.viewport.height },
+      scale: this.camera.scale,
+      fitRatio: this.camera.scale / fit.scale,
+      japan: this.scene?.japanBounds ?? null,
+      primary,
+      primaryVisible:
+        primary.x >= -2 &&
+        primary.y >= -2 &&
+        primary.x + primary.w <= this.viewport.width + 2 &&
+        primary.y + primary.h <= this.viewport.height + 2,
+    };
   }
 
   zoomRatio(): number {

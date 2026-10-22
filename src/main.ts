@@ -146,8 +146,7 @@ function startDemo(id: string): void {
   const scenario = getScenario(id);
   if (!scenario) return;
   demoFeed.start(id);
-  const app = ui;
-  app?.setTab('feed');
+  ui?.setView('list');
 }
 
 /* ------------------------------------------------------------------ *
@@ -179,7 +178,7 @@ ui = new App(store, {
     const state = store.get();
     const ev = state.events.find((e) => e.id === id);
     if (ev?.epicenter) ui?.focusMapOn(ev.epicenter.longitude, ev.epicenter.latitude);
-    if (id) ui?.setTab('detail');
+    if (id) ui?.focusDetail();
   },
   onDemoStart: (id) => startDemo(id),
   onDemoStop: () => startLive(),
@@ -274,6 +273,12 @@ window.YureWatchBack = () => {
   }
   return false;
 };
+// Exposed for the QA harness: framing/diagnostic facts, no user data.
+(window as unknown as { __yurewatch?: unknown }).__yurewatch = {
+  map: () => ui?.debugState() ?? null,
+  store: () => store.get(),
+};
+
 window.YureWatchInfo = () =>
   JSON.stringify({ mode: activeFeed, health: store.get().health.state, events: store.get().events.length });
 

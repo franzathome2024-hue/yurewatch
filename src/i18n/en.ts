@@ -131,7 +131,8 @@ export const en: Record<MessageKey, string> = {
   'feed.empty.note': 'New reports are added to this list automatically.',
   'feed.badge.preliminary': 'Prelim.',
   'feed.badge.sim': 'SIM',
-  'feed.meta.depth': 'depth {depth}',
+  'feed.headScale': 'Intensity',
+  'feed.meta.depth': 'Depth {depth}',
   'feed.name.unknown': 'Epicenter unknown',
   'feed.aria.select': 'Show details for {name} at {time}',
 
@@ -194,8 +195,8 @@ export const en: Record<MessageKey, string> = {
 
   /* ---------------- NIED ---------------- */
   'nied.sectionTitle': 'NIED real-time intensity',
-  'nied.subtitle': 'Not connected (v0.1 limitation)',
-  'nied.body1': 'Not implemented in v0.1. Nothing here is filled in with guesses or substitute data.',
+  'nied.subtitle': 'Not connected',
+  'nied.body1': 'Not implemented in this version. Nothing here is filled in with guesses or substitute data.',
   'nied.body2':
     'NIED’s real-time seismic intensity monitoring (long-period ground motion monitor) exposes no documented machine-readable API, so this version does not connect to it. It will be implemented only after the terms of use are confirmed and the data provider has agreed.',
   'nied.body3':
@@ -204,6 +205,7 @@ export const en: Record<MessageKey, string> = {
   /* ---------------- diagnostics ---------------- */
   'diag.sectionTitle': 'Connection & data freshness',
   'diag.subtitle': 'Source, timestamps, errors',
+  'diag.classification': 'Report type',
   'diag.mode': 'Mode',
   'diag.mode.live': 'LIVE (public data)',
   'diag.mode.demo': 'DEMO (simulated data)',
@@ -285,4 +287,64 @@ export const en: Record<MessageKey, string> = {
     'The app bundle may have failed to load. Open the prebuilt single-file build (dist/yurewatch.html) or restart the app.',
   'boot.fatal': 'Could not start: {message} Restart the app.',
   'boot.noscript': 'YureWatch requires JavaScript. Enable it in your browser settings.',
+
+  /* ---------------- v0.2 shell ---------------- */
+  'app.context': 'Japan earthquake monitoring',
+  'nav.label': 'Switch view',
+  'nav.map': 'Map',
+  'nav.list': 'Earthquakes',
+  'nav.detail': 'Details',
+  'nav.info': 'Info',
+
+  'status.source': 'P2P Earthquake Information v2 (relaying JMA)',
+  'status.lastUpdate': 'Last update {time}',
+  'status.mode.live': 'LIVE',
+  'status.mode.demo': 'DEMO',
+  'status.retry': 'Retry',
+  'status.noData': 'Data unavailable',
+  'status.receivedAt': 'received {time}',
+
+  'alert.strip.label': 'EEW',
+  'alert.strip.none': 'None received',
+  'alert.strip.unknown': 'Status unknown (not connected)',
+  'alert.strip.checked': 'Last checked {time}',
+  'alert.strip.offline': 'Disconnected — cannot confirm warning status',
+  'alert.hatched': 'Hypocenter not estimated, so no arrival estimate is shown',
+
+  'map.legend': 'Legend',
+  'map.legendTitle': 'Map key',
+  'map.legendIntensity': 'Intensity (marker colour and number)',
+  'map.legendEewMarker': 'EEW epicenter (estimated, issued before shaking)',
+  'map.legendQuakeMarker': 'Earthquake epicenter (issued after observation)',
+  'map.legendSelected': 'Selected earthquake',
+  'map.legendUnavailable': 'Intensity distribution overlay is not provided',
+  'map.controlsLabel': 'Map controls',
+
+  'sheet.label': 'Earthquake information panel',
+  'sheet.hintCollapse': 'Tap to enlarge the map',
+  'sheet.peekHint': 'Tap to open earthquake information',
+  'sheet.peekEmpty': 'No earthquake information yet',
+  'sheet.expand': 'Expand panel',
+  'sheet.collapse': 'Collapse panel',
+  'sheet.peekSummary': '{name} {magnitude} · {time}',
+
+  'list.title': 'Recent earthquakes',
+  'list.originLabel': 'Origin',
+  'list.reportedLabel': 'Issued',
+
+  'set.title': 'Settings',
+  'set.sectionDisplay': 'Display',
+  'set.language': 'Language',
+  'set.languageHelp': 'Japanese is the default. Your choice is saved.',
+  'set.sound': 'Alert sound',
+  'set.soundOn': 'ON',
+  'set.soundOff': 'OFF',
+  'set.soundHelp': 'Sounds only when a warning arrives. Silent for demos unless enabled.',
+  'set.sectionSource': 'Data',
+  'set.sourceHelp': 'Live data comes from the P2P Earthquake Information JSON API v2 (relaying JMA information).',
+  'set.sectionDev': 'Developer',
+  'set.demo': 'Demo / simulated data',
+  'set.sectionAbout': 'About this app',
+  'set.version': 'Version {version}',
+  'set.attribution': 'Map data: Natural Earth (public domain)',
 };

@@ -1,23 +1,20 @@
 import { DARK_MAP_THEME } from '../map/theme';
 import { geometry } from '../map/mapData';
 import { MapView } from '../map/view';
+import { formatJstClock } from '../core/time';
+import { getLocaleVersion, t } from '../i18n';
 import { ingestEvents, intensityByPrefecture } from '../state/events';
-import { selectEvent, type AppState, type Store } from '../state/store';
+import { effectiveFreshness, freshnessLabel, selectEvent, type AppState, type Store } from '../state/store';
 import { createAlertPanel } from './alertPanel';
 import { createDetails } from './details';
 import { badge, el } from './dom';
 import { createEventList } from './eventList';
 import { createHeader } from './header';
-import { createDemoPanel } from './demoPanel';
-import { createLegend, createSections } from './sections';
-import { t } from '../i18n';
+import { createInfoPanel } from './sections';
+import { createLegend } from './sections';
 
-export type MobileTab = 'feed' | 'detail' | 'info';
+export type SideView = 'list' | 'detail' | 'info';
 
-/**
- * Application shell. Owns layout and wiring; every component is a small
- * `{ el, update }` pair driven by a single immutable state object.
- */
 export interface AppHandlers {
   onSelectEvent: (id: string | null) => void;
   onDemoStart: (id: string) => void;
@@ -28,40 +25,61 @@ export interface AppHandlers {
   onZoom: (factor: number) => void;
 }
 
+const NARROW = '(max-width: 900px)';
+
+/**
+ * Application shell.
+ *
+ * Desktop: header · status strip · alert strip · [map | sidebar].
+ * Phone:   header · status strip · alert strip · [map / bottom sheet].
+ *
+ * The map is the working surface at every size; everything else is either a thin
+ * strip of status or a panel that can be dismissed. One state object drives every
+ * component, so the map, the list and the detail panel cannot disagree about
+ * what is selected.
+ */
 export class App {
   readonly root: HTMLElement;
-  private header = createHeader();
+  private header: ReturnType<typeof createHeader>;
   private alertPanel = createAlertPanel();
-  private feed: ReturnType<typeof createEventList>;
-  private details = createDetails({ onClose: () => this.handlers.onSelectEvent(null) });
-  private sections = createSections();
+  private list: ReturnType<typeof createEventList>;
+  private detail: ReturnType<typeof createDetails>;
+  private info: ReturnType<typeof createInfoPanel>;
   private legend = createLegend();
-  private demoPanel: ReturnType<typeof createDemoPanel>;
   private map: MapView | null = null;
   private mapFallback: HTMLElement;
-  private tabBar: HTMLElement;
   private simBanner: HTMLElement;
-  private simBannerText = el('span');
-  private tabButtons = new Map<MobileTab, HTMLButtonElement>();
-  private tabLabels = new Map<MobileTab, HTMLElement>();
-  private footerNote = el('span', { class: 'footer__note' });
-  private mapAriaTargets: { canvas: HTMLElement; zoomIn: HTMLElement; zoomOut: HTMLElement; recenter: HTMLElement } | null = null;
-  private soundButton: HTMLButtonElement;
-  private tab: MobileTab = 'feed';
-  private rails: { left: HTMLElement; right: HTMLElement };
+  private simBannerText = el('span', { class: 'simBanner__text' });
+  private side: HTMLElement;
+  private sideTabs = new Map<SideView, HTMLButtonElement>();
+  private sidePanels = new Map<SideView, HTMLElement>();
+  private sheetToggle: HTMLButtonElement;
+  private peekText: HTMLElement;
+  private peekHint: HTMLElement;
+  private statusSource = el('span', { class: 'statusStrip__source' });
+  private statusFresh = el('span', { class: 'statusStrip__fresh' });
+  private statusMode = el('span', { class: 'statusStrip__mode' });
+  private modeChip = el('span', { class: 'modeChip' });
+  private mapButtons: { canvas: HTMLElement; zoomIn: HTMLElement; zoomOut: HTMLElement; recenter: HTMLElement } | null = null;
+  private view: SideView = 'list';
+  private sheetExpanded = false;
   private lastMapSignature = '';
 
   constructor(
     private store: Store,
     private handlers: AppHandlers,
   ) {
-    this.feed = createEventList({ onSelect: (id) => handlers.onSelectEvent(id) });
-    this.demoPanel = createDemoPanel({
-      onStart: handlers.onDemoStart,
-      onStop: handlers.onDemoStop,
+    this.header = createHeader({ onOpenInfo: () => this.setView('info') });
+    this.list = createEventList({ onSelect: (id) => handlers.onSelectEvent(id) });
+    this.detail = createDetails({ onClose: () => handlers.onSelectEvent(null) });
+    this.info = createInfoPanel({
+      onToggleSound: handlers.onToggleSound,
+      onDemoStart: handlers.onDemoStart,
+      onDemoStop: handlers.onDemoStop,
       onExport: handlers.onExportState,
     });
 
+    /* ---------------------------------------------------------------- map -- */
     const canvas = el('canvas', {
       class: 'map__canvas',
       tabindex: '0',
@@ -69,24 +87,24 @@ export class App {
       'aria-label': t('map.aria'),
     });
 
-    // Inline SVG icons rather than text glyphs: "⌖"/"＋" are missing from some
-    // Android system fonts and render as tofu boxes.
     const icon = (path: string) =>
-      el('span', { class: 'mapControls__icon', html: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>` });
-    const controls = el('div', { class: 'mapControls' });
-    const zoomIn = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': t('map.zoomIn') },
-      icon('<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'));
-    const zoomOut = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': t('map.zoomOut') },
-      icon('<path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'));
-    const recenter = el('button', { class: 'mapControls__btn', type: 'button', 'aria-label': t('map.recenter') },
+      el('span', { class: 'mapBtn__icon', html: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>` });
+
+    const zoomIn = el('button', { class: 'mapBtn', type: 'button', 'aria-label': t('map.zoomIn') },
+      icon('<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'));
+    const zoomOut = el('button', { class: 'mapBtn', type: 'button', 'aria-label': t('map.zoomOut') },
+      icon('<path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'));
+    const recenter = el('button', { class: 'mapBtn', type: 'button', 'aria-label': t('map.recenter') },
       icon(
-        '<circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
-          '<path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+        '<path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+          '<circle cx="12" cy="12" r="4.6" fill="none" stroke="currentColor" stroke-width="1.7"/>',
       ));
     zoomIn.addEventListener('click', () => handlers.onZoom(1.35));
     zoomOut.addEventListener('click', () => handlers.onZoom(1 / 1.35));
     recenter.addEventListener('click', () => handlers.onRecenter());
-    controls.append(zoomIn, zoomOut, recenter);
+
+    const controls = el('div', { class: 'mapControls', role: 'group' }, zoomIn, zoomOut, recenter);
+    this.mapButtons = { canvas, zoomIn, zoomOut, recenter };
 
     this.mapFallback = el('div', { class: 'map__fallback', hidden: 'hidden' });
 
@@ -95,91 +113,100 @@ export class App {
       this.simBannerText,
     );
 
-    const mapWrap = el('section', { class: 'map' },
+    const mapPane = el('section', { class: 'mapPane' },
       canvas,
-      el('div', { class: 'map__vignette', 'aria-hidden': 'true' }),
       this.simBanner,
-      controls,
       this.legend.el,
+      controls,
       this.mapFallback,
     );
 
-    // Map is created after the element is in the document so it can measure.
     requestAnimationFrame(() => {
       try {
-        this.map = new MapView(mapWrap, canvas as HTMLCanvasElement, DARK_MAP_THEME, {
+        this.map = new MapView(mapPane, canvas as HTMLCanvasElement, DARK_MAP_THEME, {
           onSelectEvent: (id) => handlers.onSelectEvent(id),
           onError: (message) => this.showMapError(message),
         });
-        this.mapAriaTargets = { canvas, zoomIn, zoomOut, recenter };
         this.pushMapState(this.store.get());
       } catch (err) {
         this.showMapError(t('map.error', { message: String(err) }));
       }
     });
 
-    const leftRail = el('aside', { class: 'rail rail--left', 'data-rail': 'feed' },
-      this.feed.el,
-      this.demoPanel.el,
-    );
-    const rightRail = el('aside', { class: 'rail rail--right', 'data-rail': 'detail' },
-      this.details.el,
-      this.sections.el,
-    );
-    this.rails = { left: leftRail, right: rightRail };
-
-    this.tabBar = el('nav', { class: 'tabbar', 'aria-label': t('tab.aria') });
-    const tabIcons: Record<MobileTab, string> = {
-      feed: '<path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-      detail:
-        '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/>' +
-        '<circle cx="12" cy="12" r="2.4" fill="currentColor"/>',
-      info:
-        '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
-        '<path d="M12 11v5.5M12 7.6v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-    };
-    const tabs: MobileTab[] = ['feed', 'detail', 'info'];
-    for (const id of tabs) {
-      const label = el('span', { class: 'tabbar__label', text: t(`tab.${id}`) });
-      const button = el('button', { class: 'tabbar__btn', type: 'button', 'data-tab': id },
-        el('span', {
-          class: 'tabbar__icon',
-          'aria-hidden': 'true',
-          html: `<svg viewBox="0 0 24 24">${tabIcons[id]}</svg>`,
-        }),
-        label,
-      );
-      button.addEventListener('click', () => this.setTab(id));
-      this.tabButtons.set(id, button);
-      this.tabLabels.set(id, label);
-      this.tabBar.appendChild(button);
+    /* -------------------------------------------------------------- side -- */
+    const tabs = el('nav', { class: 'sideTabs', role: 'tablist', 'aria-label': t('nav.label') });
+    const views: SideView[] = ['list', 'detail', 'info'];
+    for (const view of views) {
+      const label = view === 'list' ? t('list.title') : view === 'detail' ? t('nav.detail') : t('nav.info');
+      const button = el('button', {
+        class: 'sideTab',
+        type: 'button',
+        role: 'tab',
+        'data-view': view,
+        'aria-selected': view === 'list' ? 'true' : 'false',
+        text: label,
+      });
+      button.addEventListener('click', () => {
+        this.setView(view);
+        this.setSheetExpanded(true);
+      });
+      this.sideTabs.set(view, button);
+      tabs.appendChild(button);
     }
 
-    this.soundButton = el('button', {
-      class: 'footer__btn',
+    this.peekText = el('span', { class: 'sheet__peekText' });
+    this.peekHint = el('span', { class: 'sheet__peekHint' });
+    this.sheetToggle = el('button', {
+      class: 'sheet__handle',
       type: 'button',
-      'aria-pressed': 'false',
-      text: t('app.audio.off'),
-    });
-    this.soundButton.addEventListener('click', () => handlers.onToggleSound());
+      'aria-expanded': 'false',
+    },
+      el('span', { class: 'sheet__grip', 'aria-hidden': 'true' }),
+      el('span', { class: 'sheet__peekMain' }, this.peekText, this.peekHint),
+      el('span', { class: 'sheet__chevron', 'aria-hidden': 'true', html:
+        '<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }),
+    );
+    this.sheetToggle.addEventListener('click', () => this.setSheetExpanded(!this.sheetExpanded));
 
-    this.footerNote.textContent = t('app.disclaimer');
-    const footer = el('footer', { class: 'footer' },
-      this.footerNote,
-      el('span', { class: 'footer__spacer' }),
-      this.soundButton,
-      el('span', { class: 'footer__build', text: `v${__APP_VERSION__}` }),
+    const sideBody = el('div', { class: 'sideBody' });
+    for (const view of views) {
+      const panel = el('div', { class: 'sidePanel', 'data-panel': view, role: 'tabpanel' },
+        view === 'list' ? this.list.el : view === 'detail' ? this.detail.el : this.info.el,
+      );
+      this.sidePanels.set(view, panel);
+      sideBody.appendChild(panel);
+    }
+
+    this.side = el('aside', { class: 'side', 'aria-label': t('sheet.label') },
+      this.sheetToggle,
+      tabs,
+      sideBody,
     );
 
-    this.root = el('div', { class: 'app', 'data-tab': this.tab },
+    /* ------------------------------------------------------------ status -- */
+    const statusStrip = el('div', { class: 'statusStrip' },
+      this.modeChip,
+      this.statusSource,
+      el('span', { class: 'statusStrip__dot', 'aria-hidden': 'true' }),
+      this.statusFresh,
+      el('span', { class: 'statusStrip__spacer' }),
+      el('span', { class: 'statusStrip__clock', text: '' }),
+    );
+
+    const work = el('main', { class: 'work' }, mapPane, this.side);
+
+    this.root = el('div', { class: 'app', 'data-view': 'list', 'data-sheet': 'peek' },
       this.header.el,
+      statusStrip,
       el('div', { class: 'alertSlot' }, this.alertPanel.el),
-      el('main', { class: 'layout' }, leftRail, mapWrap, rightRail),
-      this.tabBar,
-      footer,
+      work,
     );
 
-    this.setTab('feed');
+    this.setView('list');
+    this.setSheetExpanded(false);
+    // Desktop shows the detail panel under the list; entering the info view is a
+    // deliberate navigation, so returning to the list keeps the selection.
+    this.root.querySelector('.statusStrip__clock')!.textContent = '';
   }
 
   mount(target: HTMLElement): void {
@@ -191,51 +218,100 @@ export class App {
     this.mapFallback.textContent = `${message} ${t('map.errorSuffix')}`;
   }
 
-  setTab(tab: MobileTab): void {
-    this.tab = tab;
-    this.root.dataset.tab = tab;
-    // Phones show one rail at a time. "情報" is the detail rail with the
-    // event inspector hidden, so the disclosure sections get the space.
-    this.rails.left.classList.toggle('rail--mobileActive', tab === 'feed');
-    this.rails.right.classList.toggle('rail--mobileActive', tab === 'detail' || tab === 'info');
-    for (const button of Array.from(this.tabBar.querySelectorAll<HTMLElement>('[data-tab]'))) {
-      const active = button.dataset.tab === tab;
+  getInfoPanel(): HTMLElement {
+    return this.info.el;
+  }
+
+  setView(view: SideView): void {
+    this.view = view;
+    this.root.dataset.view = view;
+    for (const [id, button] of this.sideTabs) {
+      const active = id === view;
       button.classList.toggle('is-active', active);
-      button.setAttribute('aria-current', active ? 'true' : 'false');
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
     }
+    for (const [id, panel] of this.sidePanels) panel.hidden = id !== view;
+  }
+
+  private setSheetExpanded(expanded: boolean): void {
+    this.sheetExpanded = expanded;
+    this.root.dataset.sheet = expanded ? 'full' : 'peek';
+    this.sheetToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    this.sheetToggle.setAttribute('aria-label', expanded ? t('sheet.collapse') : t('sheet.expand'));
   }
 
   update(state: AppState): void {
-    // Static, localised labels are refreshed on every pass: a language switch is
-    // just another state update, so nothing here needs a separate code path.
+    /* ---- localised chrome ------------------------------------------- */
     this.simBannerText.textContent = t('sim.banner');
-    for (const [id, label] of this.tabLabels) label.textContent = t(`tab.${id}`);
-    this.tabBar.setAttribute('aria-label', t('tab.aria'));
-    if (this.mapAriaTargets) {
-      this.mapAriaTargets.canvas.setAttribute('aria-label', t('map.aria'));
-      this.mapAriaTargets.zoomIn.setAttribute('aria-label', t('map.zoomIn'));
-      this.mapAriaTargets.zoomOut.setAttribute('aria-label', t('map.zoomOut'));
-      this.mapAriaTargets.recenter.setAttribute('aria-label', t('map.recenter'));
+    this.legend.update(state);
+    if (this.mapButtons) {
+      this.mapButtons.canvas.setAttribute('aria-label', t('map.aria'));
+      this.mapButtons.zoomIn.setAttribute('aria-label', t('map.zoomIn'));
+      this.mapButtons.zoomOut.setAttribute('aria-label', t('map.zoomOut'));
+      this.mapButtons.recenter.setAttribute('aria-label', t('map.recenter'));
+    }
+    this.side.setAttribute('aria-label', t('sheet.label'));
+    for (const [view, button] of this.sideTabs) {
+      button.textContent = view === 'list' ? t('list.title') : view === 'detail' ? t('nav.detail') : t('nav.info');
     }
 
+    /* ---- components -------------------------------------------------- */
     this.header.update(state);
-    this.legend.update(state);
     this.alertPanel.update(state);
-    this.feed.update(state);
-    this.details.update(state);
-    this.sections.update(state);
-    this.demoPanel.update(state);
+    this.list.update(state);
+    this.detail.update(state);
+    this.info.update(state);
 
-    const sim = state.mode === 'demo' || state.alert?.simulated === true || state.events.some((e) => e.simulated);
+    /* ---- status strip ------------------------------------------------ */
+    const demo = state.mode === 'demo';
+    this.modeChip.textContent = demo ? t('status.mode.demo') : t('status.mode.live');
+    this.modeChip.dataset.mode = demo ? 'demo' : 'live';
+    this.statusSource.textContent = demo ? t('diag.provider.demo') : t('status.source');
+    const fresh = effectiveFreshness(state);
+    this.statusFresh.textContent =
+      state.health.lastSuccessAt !== null
+        ? `${t('status.lastUpdate', { time: formatJstClock(state.health.lastSuccessAt) })} · ${freshnessLabel(fresh)}`
+        : `${t('status.noData')} · ${freshnessLabel(fresh)}`;
+    this.statusFresh.dataset.freshness = fresh;
+    this.statusFresh.dataset.conn = state.health.state;
+
+    /* ---- simulation marking ------------------------------------------ */
+    const sim = demo || state.alert?.simulated === true || state.events.some((e) => e.simulated);
     this.simBanner.hidden = !sim;
     this.root.classList.toggle('app--sim', sim);
+    // Drives the compact phone treatment: with a live alert the banner carries
+    // the SIMULATION marking itself, so the map's duplicate badge is dropped and
+    // the banner is tightened to keep the map usable.
+    this.root.classList.toggle('app--alert', Boolean(state.alert));
+    this.root.dataset.conn = state.health.state;
 
-    this.soundButton.textContent = state.preferences.soundEnabled ? t('app.audio.on') : t('app.audio.off');
-    this.soundButton.setAttribute('aria-label', t('app.audio.aria'));
-    this.soundButton.setAttribute('aria-pressed', state.preferences.soundEnabled ? 'true' : 'false');
-    this.soundButton.disabled = false;
+    /* ---- sheet summary ----------------------------------------------- */
+    const selected = selectEvent(state);
+    const peekEvent = selected ?? state.events[0] ?? null;
+    if (peekEvent) {
+      const magnitude = peekEvent.epicenter ? `M${peekEvent.epicenter.magnitude.toFixed(1)}` : '';
+      this.peekText.textContent = t('sheet.peekSummary', {
+        name: peekEvent.epicenter?.name ?? t('feed.name.unknown'),
+        magnitude,
+        time: formatJstClock(peekEvent.originTime ?? peekEvent.receivedAt),
+      });
+    } else {
+      this.peekText.textContent = t('sheet.peekEmpty');
+    }
+    this.peekHint.textContent = this.sheetExpanded ? t('sheet.hintCollapse') : t('sheet.peekHint');
+    if (this.sheetToggle) {
+      this.sheetToggle.setAttribute('aria-label', this.sheetExpanded ? t('sheet.collapse') : t('sheet.expand'));
+    }
 
     this.pushMapState(state);
+  }
+
+  /** Called by main.ts after a selection so the detail is visible on phones. */
+  focusDetail(): void {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(NARROW).matches) {
+      this.setView('detail');
+      this.setSheetExpanded(true);
+    }
   }
 
   private pushMapState(state: AppState): void {
@@ -243,15 +319,14 @@ export class App {
     const selected = selectEvent(state);
     const focus = selected ?? state.events[0] ?? null;
     const perPref = focus ? intensityByPrefecture([focus]) : new Map<string, number>();
-    // Signature guards against rebuilding the scene on every 1 s tick.
     const signature = [
       state.events.map((e) => `${e.id}:${e.maxIntensity}:${e.revision}`).join(','),
       state.selectedEventId,
       state.alert ? `${state.alert.eventId}:${state.alert.serial}:${state.alert.state}` : 'none',
       focus?.id ?? 'none',
+      getLocaleVersion(),
     ].join('|');
     if (signature === this.lastMapSignature) {
-      // Only the clock changed: refresh so marker age fades stay accurate.
       this.map.update({
         geometry: geometry(),
         theme: DARK_MAP_THEME,
@@ -285,6 +360,11 @@ export class App {
 
   zoomMap(factor: number): void {
     this.map?.zoomBy(factor);
+  }
+
+  /** Diagnostics for the QA harness (viewport targets, framing checks). */
+  debugState(): unknown {
+    return this.map?.debugState() ?? null;
   }
 
   setReduceMotion(value: boolean): void {
