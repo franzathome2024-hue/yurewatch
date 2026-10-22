@@ -41,9 +41,9 @@ jobs:
       - name: Build web bundle
         run: npm run build
 
+      # setup-android exports ANDROID_HOME/ANDROID_SDK_ROOT and setup-java
+      # exports JAVA_HOME; the script picks both up.
       - name: Build signed APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         run: bash tools/build-apk.sh --skip-web
 
       - name: Record checksum
