@@ -31,6 +31,7 @@ function boot(patch: (s: AppState) => AppState = (s) => s): { store: Store; app:
     onToggleSound: () => {},
     onToggleTsunamiLayer: () => {},
     onRecenter: () => {},
+  onFrameToggle: () => {},
     onZoom: () => {},
   });
   document.body.innerHTML = '';
@@ -97,6 +98,7 @@ describe('application shell', () => {
       onToggleSound: () => {},
       onToggleTsunamiLayer: () => {},
       onRecenter: () => {},
+  onFrameToggle: () => {},
       onZoom: () => {},
     });
     document.body.innerHTML = '';

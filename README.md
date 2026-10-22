@@ -1,10 +1,15 @@
-# YureWatch — Japan Earthquake & EEW Viewer (v0.2.1)
+# YureWatch — Japan Earthquake & EEW Viewer (v0.3.0)
 
 A dark, map-first viewer for **Japan's earthquake information, Earthquake Early
 Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installable
 **Android APK** and as a single-file web build.
 
-v0.2 is a complete interface rebuild: the map now owns the screen, the alert area
+v0.3 makes the map correct and readable: framing is derived from the geometry the
+app promises to show (no island is cropped by a hand-written bounding box), prefecture
+names are placed by priority at every zoom, and a browser harness verifies coverage
+against rendered pixels across eight viewport classes — see `docs/MAP_QA.md`.
+
+v0.2 was a complete interface rebuild: the map now owns the screen, the alert area
 is a thin strip until a real alert exists, and phones get a purpose-built layout
 instead of a squeezed desktop one. See [docs/UI.md](docs/UI.md) for the layout
 decisions and the constraints the UI is verified against.
@@ -186,6 +191,22 @@ image URLs); the build fails if one appears. Open it from the filesystem or from
 any static host.
 
 ---
+
+## Map framing
+
+Two explicit profiles, switchable from the control column on the map (`全国` / `本土`,
+or `?frame=mainland|archipelago`):
+
+- **本土 (mainland)** — Hokkaidō, Honshū, Shikoku, Kyūshū and their coastal islands
+  (everything from 30 °N). Opens by default on landscape panes.
+- **全国 (archipelago)** — adds the Nansei chain including Okinawa and the Ogasawara
+  group. Opens by default on portrait panes.
+
+Each profile's camera rectangle is measured from the rings it includes, so nothing a
+profile claims is ever cropped at the canvas edge. Five islets below 26.5 °N under
+0.02 deg² (three Izu volcanoes, two Kerama islets) are drawn and reachable by panning
+but do not set the frame — otherwise 2,800 km of empty Pacific would halve the scale of
+the mainland. `docs/MAP_QA.md` records the measured before/after results.
 
 ## Languages
 
@@ -442,6 +463,7 @@ Coverage by area:
 | `tests/liveFeed.test.ts` | Polling cadence, rate-limit budget, HTTP/network/JSON failures, backoff, stale watchdog, recency gating. |
 | `tests/data.test.ts` | The 47-prefecture table and the map geometry cannot drift apart. |
 | `tests/ui.test.ts` | Panel rendering: warning vs forecast wording, offline wording, SIMULATION labels, provenance. |
+| `tools/map-qa.mjs` (`npm run qa:map`) | Browser harness: 8 viewport classes, live camera vs re-projected geometry vs rendered pixels. 88 checks; screenshots in `docs/qa/`. |
 | `tests/uiShell.test.ts` | v0.2 shell: mount order (header, strip, alert, map, sidebar), view switching, sheet peek/full cycle keeping the selection, sheet summary line, honest freshness (stalled transport ≠ "up to date"), strip vs banner, legend content in both languages, info-panel ordering (status → … → developer tools → about). |
 | `tests/i18n.test.ts` | Catalog parity (keys + placeholders), Japanese default even on an `en-US` device, persistence, instant switching, locale-aware JST formatting, intensity vocabulary, and a full UI re-render on switch. |
 | `tools/verify-web.mjs` | Real Chromium: boot, painted canvas, **Android bridge contract**, demo labelling, lifecycle hooks, back gesture, Japanese default, English switching, persistence across reload, accessibility-label translation, no horizontal overflow in English, **plus v0.2 layout measurements at 360×800 / 390×844 / 430×932 / 768×1024 / 1280×800 / 1440×900** (Japan fully framed, map > 55 % of the work area, no overflow, touch targets ≥ 30 px) **and the cancelled / offline / stale / info-panel states**. |

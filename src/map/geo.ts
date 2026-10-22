@@ -109,19 +109,34 @@ export function fitBounds(bounds: GeoBounds, vp: Viewport, padding = 24): Camera
  * the dataset includes Okinawa and the offshore islands, and fitting to a
  * narrower box silently cropped them on square-ish viewports.
  */
+export interface BoxInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export function fitWorldRect(
   rect: { minX: number; minY: number; maxX: number; maxY: number },
   vp: Viewport,
-  padding = 16,
+  padding: number | BoxInsets = 16,
 ): Camera {
+  const insets: BoxInsets =
+    typeof padding === 'number'
+      ? { top: padding, right: padding, bottom: padding, left: padding }
+      : padding;
   const w = Math.max(1e-9, rect.maxX - rect.minX);
   const h = Math.max(1e-9, rect.maxY - rect.minY);
-  const availW = Math.max(40, vp.width - padding * 2);
-  const availH = Math.max(40, vp.height - padding * 2);
+  const availW = Math.max(40, vp.width - insets.left - insets.right);
+  const availH = Math.max(40, vp.height - insets.top - insets.bottom);
   const scale = Math.min(availW / w, availH / h);
+  // Centre inside the *inset* box rather than the raw canvas, so the country is
+  // not hidden under the zoom controls or the scale bar.
+  const boxCx = insets.left + availW / 2;
+  const boxCy = insets.top + availH / 2;
   return {
-    cx: (rect.minX + rect.maxX) / 2,
-    cy: (rect.minY + rect.maxY) / 2,
+    cx: (rect.minX + rect.maxX) / 2 - (boxCx - vp.width / 2) / scale,
+    cy: (rect.minY + rect.maxY) / 2 - (boxCy - vp.height / 2) / scale,
     scale,
   };
 }
@@ -171,21 +186,50 @@ export function clampScale(scale: number, limits: ZoomLimits): number {
  */
 export const PAN_BOUNDS: GeoBounds = { west: 118, south: 20, east: 158, north: 52 };
 
+/**
+ * Keep the viewport over Japan.
+ *
+ * The old version clamped the *centre* to the pan box, which has two failures:
+ * at high zoom it allows the centre to reach the box corner, so the operator can
+ * park Japan entirely off-screen; and it never accounts for how much of the
+ * viewport the box covers. Here the camera is kept inside the pan box plus the
+ * part of the viewport that is allowed to overhang, and when the viewport is
+ * bigger than the box (fully zoomed out) it centres instead of fighting the
+ * constraint.
+ */
 export function clampCamera(cam: Camera, vp: Viewport, limits: ZoomLimits): Camera {
+  const scale = clampScale(cam.scale, limits);
   const nw = project({ lon: PAN_BOUNDS.west, lat: PAN_BOUNDS.north });
   const se = project({ lon: PAN_BOUNDS.east, lat: PAN_BOUNDS.south });
-  const halfW = vp.width / 2 / cam.scale;
-  const halfH = vp.height / 2 / cam.scale;
-  const minX = nw.x + Math.min(halfW, (se.x - nw.x) / 2) * 0;
-  const maxX = se.x;
-  let cx = cam.cx;
-  let cy = cam.cy;
-  cx = Math.max(minX, Math.min(maxX, cx));
-  cy = Math.max(nw.y, Math.min(se.y, cy));
-  // If the viewport is wider/taller than the pan box, centre it instead.
-  if (halfW * 2 > se.x - nw.x) cx = (nw.x + se.x) / 2;
-  if (halfH * 2 > se.y - nw.y) cy = (nw.y + se.y) / 2;
-  return { cx, cy, scale: clampScale(cam.scale, limits) };
+  const halfW = vp.width / 2 / scale;
+  const halfH = vp.height / 2 / scale;
+
+  // The pan box is much larger than Japan (it exists so the surroundings can be
+  // inspected), so clamping to it alone still lets the operator push the country
+  // off the canvas — measured: a hard pan put the viewport's edge 1.5° east of
+  // Hokkaidō with nothing on screen. Keep a guaranteed slice of the country
+  // visible instead: at least a third of the smaller of (country, viewport).
+  const f = { nw: project({ lon: JAPAN_BOUNDS.west, lat: JAPAN_BOUNDS.north }), se: project({ lon: JAPAN_BOUNDS.east, lat: JAPAN_BOUNDS.south }) };
+  const focusW = Math.max(1e-9, f.se.x - f.nw.x);
+  const focusH = Math.max(1e-9, f.se.y - f.nw.y);
+  const keepX = Math.min(focusW, halfW * 2) * 0.35;
+  const keepY = Math.min(focusH, halfH * 2) * 0.35;
+
+  // Allow the viewport edge to travel past the country by up to (half - keep).
+  let loX = f.nw.x - halfW + keepX;
+  let hiX = f.se.x + halfW - keepX;
+  let loY = f.nw.y - halfH + keepY;
+  let hiY = f.se.y + halfH - keepY;
+  // When the viewport is larger than the country, those bounds invert: centre.
+  if (loX > hiX) { const mid = (f.nw.x + f.se.x) / 2; loX = mid; hiX = mid; }
+  if (loY > hiY) { const mid = (f.nw.y + f.se.y) / 2; loY = mid; hiY = mid; }
+
+  // And never leave the wider pan box either.
+  return {
+    cx: Math.max(Math.max(loX, nw.x), Math.min(Math.min(hiX, se.x), cam.cx)),
+    cy: Math.max(Math.max(loY, nw.y), Math.min(Math.min(hiY, se.y), cam.cy)),
+    scale,
+  };
 }
 
 export function panBy(cam: Camera, vp: Viewport, dxPx: number, dyPx: number, limits: ZoomLimits): Camera {
@@ -196,9 +240,20 @@ export function panBy(cam: Camera, vp: Viewport, dxPx: number, dyPx: number, lim
   );
 }
 
+/**
+ * Zoom limits relative to a supplied reference fit.
+ *
+ * `minScale` is slightly below the fit so the operator can pull back and see
+ * context; it is not far enough to shrink Japan into a dot. `maxScale` allows
+ * zooming until a prefecture is a few screen-widths across, which is as far as
+ * 1:10m geometry repays.
+ */
+export function zoomLimitsFor(fitScale: number): ZoomLimits {
+  return { minScale: fitScale * 0.6, maxScale: fitScale * 26 };
+}
+
 export function defaultZoomLimits(vp: Viewport): ZoomLimits {
-  const fit = fitBounds(JAPAN_BOUNDS, vp);
-  return { minScale: fit.scale * 0.55, maxScale: fit.scale * 22 };
+  return zoomLimitsFor(fitBounds(JAPAN_BOUNDS, vp).scale);
 }
 
 export function distance(a: Point, b: Point): number {

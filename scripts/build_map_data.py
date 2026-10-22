@@ -28,7 +28,17 @@ import zipfile
 
 NE = "https://naciscdn.org/naturalearth/10m/cultural/"
 CACHE = os.path.join(os.path.dirname(__file__), ".naturalearth")
+# Japan's own geometry: every prefecture ring Natural Earth holds inside this box.
+# Bounds are a *stated coverage claim* — tools/map-qa.mjs asserts that everything
+# inside them is reachable, and src/map/framing.ts asserts that whatever a framing
+# profile includes is never cropped at the canvas edge.
 BOUNDS = (127.5, 24.0, 148.0, 46.5)  # lon_min, lat_min, lon_max, lat_max
+
+# Neighbouring countries are a backdrop, not coverage. They are clipped well
+# outside the camera's pan limits (118..158 E, 20..52 N) so the sea never ends
+# in a straight vertical line partway across the map — the old box cut China off
+# at 127.5 E, which was visible as a ruled edge inside the viewport.
+CONTEXT_BOUNDS = (114.0, 16.0, 162.0, 56.0)
 
 # Simplification tolerance per source, in degrees. The previous build used 0.006
 # (~660 m) for prefectures, which visibly cut corners off bays and peninsulas once
@@ -64,7 +74,7 @@ def fetch(name: str) -> str:
     return shp
 
 
-def rings(geom, tolerance: float):
+def rings(geom, tolerance: float, bounds=None):
     """Simplify + clip a geometry, return list of [ [lon,lat], ... ] rings."""
     from shapely.geometry import MultiPolygon, Polygon, box
     from shapely.ops import unary_union
@@ -73,7 +83,7 @@ def rings(geom, tolerance: float):
         return []
     geom = geom.buffer(0)
     geom = geom.simplify(tolerance, preserve_topology=True)
-    geom = geom.intersection(box(*BOUNDS))
+    geom = geom.intersection(box(*(bounds or BOUNDS)))
     if geom.is_empty:
         return []
     if isinstance(geom, Polygon):
@@ -107,6 +117,20 @@ def _ring_area(ring) -> float:
         x2, y2 = ring[i + 1]
         s += x1 * y2 - x2 * y1
     return s / 2.0
+
+
+def _measured_bounds(prefectures):
+    """Actual lon/lat extent of the shipped prefecture rings.
+
+    `bounds` is the *clip box*; before this was separated, the metadata
+    advertised the clip box as if it were the geometry, so 148 E and 24.0 N
+    looked like real coordinates when the easternmost point is 145.8 E.
+    """
+    xs = [pt[0] for p in prefectures for ring in p["rings"] for pt in ring]
+    ys = [pt[1] for p in prefectures for ring in p["rings"] for pt in ring]
+    if not xs:
+        return BOUNDS
+    return [round(min(xs), 3), round(min(ys), 3), round(max(xs), 3), round(max(ys), 3)]
 
 
 def main() -> int:
@@ -149,7 +173,7 @@ def main() -> int:
     for _, row in adm0.iterrows():
         if row.get("ADMIN") == "Japan":
             continue
-        r = rings(row["geometry"], SOURCES["ne_10m_admin_0_countries"][1])
+        r = rings(row["geometry"], SOURCES["ne_10m_admin_0_countries"][1], CONTEXT_BOUNDS)
         if r:
             neighbours.append({"name": row.get("ADMIN"), "rings": r})
     print(f"neighbour countries intersecting bbox: {len(neighbours)}")
@@ -159,6 +183,8 @@ def main() -> int:
             "source": "Natural Earth 1:10m (public domain) - ne_10m_admin_1_states_provinces, ne_10m_admin_0_countries",
             "sourceUrl": "https://www.naturalearthdata.com/",
             "bounds": BOUNDS,
+            "contextBounds": CONTEXT_BOUNDS,
+            "geometryBounds": _measured_bounds(prefectures),
             "generator": "scripts/build_map_data.py",
             "processing": (
                 "Natural Earth 1:10m admin-1 (Japan) and admin-0 (neighbours) simplified with "
@@ -168,7 +194,8 @@ def main() -> int:
             ),
             "note": (
                 "Coastline detail is limited by the source: Natural Earth 1:10m holds only ~160 polygon parts for "
-                "Japan, so small islands and fine harbour detail are absent at high zoom. Not for navigation or measurement."
+                "Japan, so small islands and fine harbour detail are absent at high zoom, and the southern Ryukyus "
+                "(Miyakojima, Ishigakijima, Yonaguni) are missing entirely. Not for navigation or measurement."
             ),
         },
         "prefectures": prefectures,

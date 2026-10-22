@@ -93,6 +93,48 @@ arithmetic so a future change cannot silently exceed the limit.
 6. **Timestamps are JST strings without a zone** (`2026/10/22 07:45:00.123`), and
    some are unparsable. `parseJst()` is strict and returns `null`.
 
+## 1a. Coastline & context land — Natural Earth 1:10m (public domain)
+
+| Property | Value |
+| --- | --- |
+| Files | `ne_10m_admin_1_states_provinces` (Japan), `ne_10m_admin_0_countries` (neighbours) |
+| URL | `https://naciscdn.org/naturalearth/10m/cultural/…zip` |
+| Licence | Public domain — no attribution required, no share-alike |
+| Generator | `scripts/build_map_data.py` → `src/data/japan-map.json` |
+
+### Coverage claims (measured, not declared)
+
+| Property | Value (this release) |
+| --- | --- |
+| Japan clip box (`meta.bounds`) | 127.5, 24.0, 148.0, 46.5 |
+| **Measured** geometry extent (`meta.geometryBounds`) | 127.636, 24.212, 145.825, 45.52 |
+| Context clip box (`meta.contextBounds`) | 114.0, 16.0, 162.0, 56.0 |
+| Prefectures / rings / vertices | 47 / 136 / 17,777 |
+
+`meta.bounds` is the box the generator *asked* for; `meta.geometryBounds` is what it
+actually got. Earlier releases published only the clip box, which made 148 °E and
+24.0 °N look like real coordinates when the easternmost point in the data is 145.8 °E.
+
+Context land is clipped at 114–162 °E / 16–56 °N, deliberately wider than the camera's
+pan limits (118–158 °E / 20–52 °N) so neighbouring countries never end in a straight
+line inside a reachable view. This also brought Taiwan, the Philippines, Mongolia,
+Hong Kong and the Northern Marianas into the context layer.
+
+### Known completeness gap
+
+**The southern Ryukyus are not in this dataset.** Natural Earth 1:10m holds only the
+northern part of Okinawa prefecture: every 沖縄県 ring starts north of 25.8 °N, so
+Miyakojima, Ishigakijima, Iriomote and Yonaguni are absent. `ne_10m_minor_islands` was
+checked and does not contain them either (verified 2026-10-22: 2,795 polygons, none in
+the 124–125 °E / 24.3–24.8 °N box). Nothing is drawn there, and the app does not
+pretend otherwise.
+
+Replacing the basemap with a Japanese national source was evaluated and rejected on
+measured grounds in §2c (MLIT C23 coastline: 2006 only, ≈1.0 km median offset from the
+current data). GSI 行政区域データ would close the gap but is a per-prefecture GML
+dataset orders of magnitude larger than this app's entire geography budget; it has not
+been adopted because it has not been tested here, not because of a licensing problem.
+
 ## 2. In use — bundled geographic data
 
 Two different geographic products are bundled. They are **not** interchangeable,

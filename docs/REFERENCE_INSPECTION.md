@@ -83,3 +83,59 @@ asked for ("preserve the recognizable aspects … use original project branding"
 | Reference project's own API/credentials | Prohibited by its terms; not used. |
 | Play Store signing key | Not available; CI uses a throwaway debug key, documented. |
 | Android device/emulator | No KVM in the build environment; APK built + signature-verified, bridge tested in Chromium. Manual device check outstanding. |
+
+---
+
+## 6. Deep comparison pass (v0.3.0)
+
+This section was produced by reading the reference's **packaged application and
+project data**, not its screenshots.
+
+### 6.1 What the reference actually is
+
+| Property | Reference | YureWatch |
+| --- | --- | --- |
+| Engine | Scratch 3 project packaged with TurboWarp Packager (`docs/assets/project.json`, 5.9 MB, 7 targets); Tauri shell for desktop | TypeScript + Canvas 2D, single-file HTML bundle |
+| Stage | Scratch's 480×360 stage, scaled to the viewport by the packager | CSS-sized canvas at device pixel ratio |
+| Map | The 地図 sprite with **436 costumes** — 188 coastline tiles (`nc###`), 66 tsunami forecast regions (`tsf##`), 66 tsunami warning areas (`tsw##`), plus epicentre/overlay sprites (`epc##`, `wld##`, `nb#`/`nf#`, `j#`/`y#`/`h#`) | One `Path2D` per shape, 136 prefecture rings + 9 neighbour countries, projected to Web-Mercator once |
+| Geography | Pre-rendered SVG tiles, fixed extent; affine lat/lon ↔ stage mapping (`xy相互変換` = 6 constants) | Real Mercator camera (`cx`, `cy`, `scale`), arbitrary zoom/pan |
+| Camera | Fixed scale with costume switching; separate camera-fit tables (`1カメラ系`, `d tsu:津波カメラフィット` 132 entries) | Fit derived from measured geometry per profile (`src/map/framing.ts`) |
+| Local data | 1,746 observation points (`d ten:x/y/名前/観測点所属区域`), 194 細分区域, 7,176 jms points, 3024-entry place-code table | 47 prefectures, 66 tsunami forecast regions from JMA |
+| Licence | Assets CC BY-SA 2.0; no software licence | MIT; map data public domain |
+
+The 66 `tsf` costumes line up exactly with the 66 JMA 津波予報区 that YureWatch
+bundles, which independently corroborates the region count in
+`src/data/tsunami-areas.json`.
+
+### 6.2 The reference's own map-display bug is instructive
+
+Commit `55c4d1f fix: 相模湾が遠地になるバグを修正` ("Sagami Bay is reported as a distant
+region") changes **six entries** in the stage list `d ten:観測点所属区域` from `193` to
+`192`. That list maps each of 1,746 observation stations to a 細分区域. Six stations
+were filed under the wrong region, so intensity observations near Sagami Bay were
+aggregated into the wrong area and the map drew the shaking as a distant event.
+
+The lesson applied here: **a marker in the wrong place is usually a data-mapping
+fault, not a projection fault.** Our equivalent risk is the prefecture resolution in
+`src/data/prefectures.ts` and the tsunami region name matching in
+`src/map/tsunamiData.ts`, both of which are covered by tests
+(`tests/tsunami.test.ts`, `tests/scene.test.ts`) rather than by eyeballing the map.
+
+### 6.3 Two things the reference does better, and what was done about them
+
+1. **Names are always on the map.** The reference shows area names at its default
+   framing. YureWatch v0.2 showed none until 1.7× zoom, which left the default view as
+   an unlabelled outline. Fixed in `src/map/scene.ts`: priority label placement (largest
+   prefecture first), overlap culling against both other labels and marker footprints,
+   and a cap that rises with zoom (12 → 24 → 47) instead of a single on/off threshold.
+2. **Land never runs to a hard edge.** The reference's fixed-extent tiles end at the
+   stage border, which reads as deliberate. YureWatch clipped neighbours at 127.5 °E,
+   which read as a bug. Fixed in the generator with a context clip box beyond the pan
+   limits.
+
+### 6.4 Not adopted
+
+- The reference's tile geometry and region costumes: CC BY-SA 2.0, share-alike would
+  force the whole combined work into that licence.
+- Its camera-fit tables: they encode a fixed-extent design that cannot express the
+  "everything we ship is always visible" guarantee this project now makes.

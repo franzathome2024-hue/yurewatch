@@ -1,6 +1,6 @@
 {
   "name": "yurewatch",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Japan Earthquake Early Warning (EEW) viewer — map-centric real-time monitoring UI for Android and the web.",
@@ -15,7 +15,8 @@
     "map:data": "python3 scripts/build_map_data.py",
     "android:apk": "bash tools/build-apk.sh",
     "verify:web": "node tools/verify-web.mjs",
-    "test:all": "npm run typecheck && npm test && npm run build"
+    "test:all": "npm run typecheck && npm test && npm run build && npm run qa:map",
+    "qa:map": "node tools/map-qa.mjs"
   },
   "devDependencies": {
     "jsdom": "^25.0.1",

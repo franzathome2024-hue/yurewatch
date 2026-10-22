@@ -97,10 +97,42 @@ describe('camera', () => {
     const clamped = clampCamera(cam, vp, defaultZoomLimits(vp));
     const nw = project({ lon: 118, lat: 52 });
     const se = project({ lon: 158, lat: 20 });
-    expect(clamped.cx).toBeGreaterThanOrEqual(nw.x - 1e-9);
-    expect(clamped.cx).toBeLessThanOrEqual(se.x);
-    expect(clamped.cy).toBeGreaterThanOrEqual(nw.y - 1e-9);
-    expect(clamped.cy).toBeLessThanOrEqual(se.y);
+    // The centre may overhang the pan box by a quarter of the viewport (so the
+    // edge of the country can be inspected) but never further.
+    const slackX = vp.width / 2 / clamped.scale / 4;
+    const slackY = vp.height / 2 / clamped.scale / 4;
+    expect(clamped.cx).toBeGreaterThanOrEqual(nw.x - slackX - 1e-9);
+    expect(clamped.cx).toBeLessThanOrEqual(se.x + slackX + 1e-9);
+    expect(clamped.cy).toBeGreaterThanOrEqual(nw.y - slackY - 1e-9);
+    expect(clamped.cy).toBeLessThanOrEqual(se.y + slackY + 1e-9);
+  });
+
+  it('never lets the viewport lose Japan entirely', () => {
+    // Panning hard in every direction must leave the country on screen.
+    const limits = defaultZoomLimits(vp);
+    const start = fitBounds(JAPAN_BOUNDS, vp);
+    for (const [dx, dy] of [
+      [50_000, 0],
+      [-50_000, 0],
+      [0, 50_000],
+      [0, -50_000],
+      [0, 0],
+    ] as const) {
+      const clamped = panBy(start, vp, dx, dy, limits);
+      const nw = project({ lon: JAPAN_BOUNDS.west, lat: JAPAN_BOUNDS.north });
+      const se = project({ lon: JAPAN_BOUNDS.east, lat: JAPAN_BOUNDS.south });
+      // Screen rectangle covered by the viewport, in world units.
+      const viewW = vp.width / clamped.scale;
+      const viewH = vp.height / clamped.scale;
+      const viewLeft = clamped.cx - viewW / 2;
+      const viewRight = clamped.cx + viewW / 2;
+      const viewTop = clamped.cy - viewH / 2;
+      const viewBottom = clamped.cy + viewH / 2;
+      const overlapX = Math.min(viewRight, se.x) - Math.max(viewLeft, nw.x);
+      const overlapY = Math.min(viewBottom, se.y) - Math.max(viewTop, nw.y);
+      expect(overlapX).toBeGreaterThan(0);
+      expect(overlapY).toBeGreaterThan(0);
+    }
   });
 
   it('computes midpoints for pinch gestures', () => {

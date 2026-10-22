@@ -1,18 +1,25 @@
 import type { Viewport } from './geo';
 import {
-  JAPAN_BOUNDS,
   clampCamera,
-  defaultZoomLimits,
-  fitBounds,
-  PRIMARY_VIEW_BOUNDS,
+  fitWorldRect,
   panBy,
   project,
   worldToScreen,
   zoomAt,
+  zoomLimitsFor,
   type Camera,
   type Point,
   type ZoomLimits,
 } from './geo';
+import {
+  defaultProfile,
+  framingInsets,
+  profileBounds,
+  profileFeatureCodes,
+  profileRect,
+  profileRingKeys,
+  type FramingProfile,
+} from './framing';
 import { geometry, type MapGeometry } from './mapData';
 import { MapRenderer } from './renderer';
 import { buildScene, hitTest, type Marker, type MapScene, type SceneInput } from './scene';
@@ -27,6 +34,7 @@ import { t } from '../i18n';
 export interface MapViewCallbacks {
   onSelectEvent: (id: string | null) => void;
   onCameraChange?: (camera: Camera, zoomRatio: number) => void;
+  onProfileChange?: (profile: FramingProfile) => void;
   onError?: (message: string) => void;
 }
 
@@ -45,6 +53,8 @@ export class MapView {
   private dragMoved = false;
   /** Cleared on the first pan/zoom: until then, layout changes refit Japan. */
   private userAdjusted = false;
+  /** What "show Japan" means right now. Explicit, and reported in debugState. */
+  private profile: FramingProfile | null = null;
   private reduceMotion = false;
   private readonly geometryData: MapGeometry;
   private resizeObserver: ResizeObserver | null = null;
@@ -113,15 +123,23 @@ export class MapView {
     const height = Math.max(1, Math.round(rect.height));
     const dpr = Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
     const first = this.viewport.width <= 1;
+    const prev = this.viewport;
     this.viewport = { width, height, dpr };
-    this.limits = defaultZoomLimits(this.viewport);
+    if (!this.profile) this.profile = defaultProfile(this.viewport);
+    this.limits = this.zoomLimits();
+
     if (first || !this.userAdjusted) {
       // Fit on first layout *and* on every layout change until the operator
       // takes control. Panels above the map reflow when an EEW arrives, and
       // refitting keeps Japan framed instead of leaving it small and off-centre.
-      this.camera = this.fitJapan();
+      this.camera = this.fitProfile();
     } else {
-      this.camera = clampCamera(this.camera, this.viewport, this.limits);
+      // The operator is driving. Preserve *what they were looking at* rather
+      // than only clamping the centre: a shorter pane (an EEW banner opening)
+      // used to crop the bottom of the view, which is where the epicentre often
+      // is. Shrink the scale so the previous world window still fits, then clamp.
+      const kept = this.preserveVisible(prev, { width, height, dpr });
+      this.camera = clampCamera(kept, this.viewport, this.limits);
     }
     this.renderer?.resize(this.viewport);
     this.dirty = true;
@@ -136,21 +154,57 @@ export class MapView {
   }
 
   /**
-   * Framing for the initial view and for "show all of Japan".
+   * Framing for the initial view, for "recentre" and for a profile switch.
    *
-   * Fits the main islands plus Okinawa (PRIMARY_VIEW_BOUNDS). Deliberately not
-   * the full dataset bbox: that contains detached islets (Okinotorishima,
-   * Minamitorishima) whose inclusion shrinks the mainland to a strip. The
-   * detached shapes stay reachable by panning/zooming, and the zoom limits are
-   * still derived from the whole geometry so nothing becomes unreachable.
+   * The rectangle comes from the geometry that the active profile includes, so
+   * anything the profile claims is inside the frame by construction — see
+   * src/map/framing.ts for why the old hand-written box could not deliver that.
    */
-  private fitJapan(): Camera {
-    return fitBounds(PRIMARY_VIEW_BOUNDS, this.viewport, 18);
+  private fitProfile(): Camera {
+    const profile = this.activeProfile();
+    return fitWorldRect(
+      profileRect(this.geometryData, profile),
+      this.viewport,
+      framingInsets(this.viewport),
+    );
+  }
+
+  /** Keeps the previously visible world window visible after a layout change. */
+  private preserveVisible(prev: Viewport, next: Viewport): Camera {
+    if (prev.width <= 1 || prev.height <= 1) return this.camera;
+    const oldW = prev.width / this.camera.scale;
+    const oldH = prev.height / this.camera.scale;
+    const fitScale = Math.min(next.width / oldW, next.height / oldH);
+    return { cx: this.camera.cx, cy: this.camera.cy, scale: fitScale };
+  }
+
+  activeProfile(): FramingProfile {
+    return this.profile ?? defaultProfile(this.viewport);
+  }
+
+  /** Switch between mainland and full-archipelago framing. */
+  setProfile(profile: FramingProfile): void {
+    this.profile = profile;
+    this.userAdjusted = false;
+    this.limits = this.zoomLimits();
+    this.camera = this.fitProfile();
+    this.dirty = true;
+    this.requestFrame();
+    this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
+    this.callbacks.onProfileChange?.(profile);
+  }
+
+  toggleProfile(): void {
+    this.setProfile(this.activeProfile() === 'mainland' ? 'archipelago' : 'mainland');
+  }
+
+  private zoomLimits(): ZoomLimits {
+    return zoomLimitsFor(this.fitProfile().scale);
   }
 
   recenter(): void {
     this.userAdjusted = false;
-    this.camera = this.fitJapan();
+    this.camera = this.fitProfile();
     this.dirty = true;
     this.requestFrame();
     this.callbacks.onCameraChange?.(this.camera, this.zoomRatio());
@@ -181,23 +235,64 @@ export class MapView {
   debugState(): {
     viewport: { width: number; height: number };
     scale: number;
+    /** World-space camera centre, so QA can reproduce the projection exactly. */
+    cx: number;
+    cy: number;
     fitRatio: number;
     /** Screen bounds of the full dataset (includes detached islets). */
     japan: MapScene['japanBounds'] | null;
-    /** Screen bounds of the primary region (main islands + Okinawa). */
+    /** Screen bounds of the declared coverage (the active profile). */
     primary: MapScene['japanBounds'] | null;
     primaryVisible: boolean;
+    framing: {
+      profile: FramingProfile;
+      bounds: { west: number; south: number; east: number; north: number };
+      insets: { top: number; right: number; bottom: number; left: number };
+      userAdjusted: boolean;
+    };
+    coverage: { profile: FramingProfile; rings: string[]; prefectures: string[] };
+    labels: Array<{ x: number; y: number; w: number; h: number }>;
   } {
-    const fit = fitBounds(JAPAN_BOUNDS, this.viewport);
-    const nw = project({ lon: PRIMARY_VIEW_BOUNDS.west, lat: PRIMARY_VIEW_BOUNDS.north });
-    const se = project({ lon: PRIMARY_VIEW_BOUNDS.east, lat: PRIMARY_VIEW_BOUNDS.south });
+    const profile = this.activeProfile();
+    const fit = this.fitProfile();
+    const bounds = profileBounds(this.geometryData, profile);
+    const nw = project({ lon: bounds.west, lat: bounds.north });
+    const se = project({ lon: bounds.east, lat: bounds.south });
     const a = worldToScreen(this.camera, this.viewport, nw);
     const b = worldToScreen(this.camera, this.viewport, se);
     const primary = { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
     return {
       viewport: { width: this.viewport.width, height: this.viewport.height },
       scale: this.camera.scale,
+      cx: this.camera.cx,
+      cy: this.camera.cy,
       fitRatio: this.camera.scale / fit.scale,
+      framing: {
+        profile,
+        /** Declared coverage, measured from the geometry the profile includes. */
+        bounds,
+        insets: framingInsets(this.viewport),
+        userAdjusted: this.userAdjusted,
+      },
+      /** Feature list the QA harness checks for on-screen coverage. */
+      coverage: {
+        profile,
+        /** Rings the profile promises, so QA can verify each one is on screen. */
+        rings: profileRingKeys(this.geometryData, profile),
+        prefectures: profileFeatureCodes(this.geometryData, profile),
+      },
+      /**
+       * Approximate boxes of the text the renderer drew, so visual QA can tell
+       * "this pixel is bright because it is a label" from "this pixel should be
+       * ocean". Widths are estimated from character count, which is all the
+       * harness needs to exclude a sample point.
+       */
+      labels: (this.scene?.labels ?? []).map((l) => ({
+        x: l.x,
+        y: l.y - l.size * 0.7,
+        w: l.text.length * l.size * 0.62,
+        h: l.size * 1.4,
+      })),
       japan: this.scene?.japanBounds ?? null,
       primary,
       primaryVisible:
@@ -209,8 +304,10 @@ export class MapView {
   }
 
   zoomRatio(): number {
-    const fit = fitBounds(JAPAN_BOUNDS, this.viewport);
-    return this.camera.scale / fit.scale;
+    // Relative to the active profile's fit, so "1.0" means "the whole profile
+    // is framed" for both mainland and archipelago — the old ratio was pinned to
+    // a third, undocumented box and disagreed with the recentre behaviour.
+    return this.camera.scale / this.fitProfile().scale;
   }
 
   getScene(): MapScene | null {

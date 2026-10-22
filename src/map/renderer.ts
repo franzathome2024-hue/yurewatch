@@ -81,24 +81,10 @@ export class MapRenderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalAlpha = 1;
 
-    // Ocean background (vertical gradient + soft radial lift behind Japan).
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, this.theme.oceanTop);
-    grad.addColorStop(1, this.theme.oceanBottom);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, width, height);
-
-    const glow = ctx.createRadialGradient(
-      width * 0.55,
-      height * 0.42,
-      0,
-      width * 0.55,
-      height * 0.42,
-      Math.max(width, height) * 0.75,
-    );
-    glow.addColorStop(0, 'rgba(30,64,102,0.28)');
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow;
+    // Flat ocean. The old vertical gradient plus a radial "lift" behind Japan
+    // was decoration: it tinted the sea unevenly, cost a full-canvas composite
+    // per frame, and made the land/water contrast depend on where you looked.
+    ctx.fillStyle = this.theme.oceanTop;
     ctx.fillRect(0, 0, width, height);
 
     // Graticule.
@@ -128,10 +114,11 @@ export class MapRenderer {
       dpr * (height / 2 - cam.cy * scale),
     );
 
-    // Context land (neighbours).
+    // Context land (neighbours). Clipped generously by the generator so it runs
+    // off the edge of any reachable view instead of ending in a straight line.
     ctx.fillStyle = this.theme.landFill;
     ctx.strokeStyle = this.theme.landStroke;
-    ctx.lineWidth = 0.8 / scale;
+    ctx.lineWidth = 1 / scale;
     for (const path of this.landPaths) {
       ctx.fill(path, 'evenodd');
       ctx.stroke(path);
@@ -176,8 +163,12 @@ export class MapRenderer {
       this.drawMarker(ctx, m, scaleStyle(m.intensity).text);
     }
 
-    // Labels last so nothing covers them.
+    // Labels last so nothing covers them. They are centred on their anchor:
+    // the scene measures overlap boxes around the same point, and drawing them
+    // left-aligned made that collision test disagree with the pixels (adjacent
+    // prefecture names visibly overlapped at the default zoom).
     ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
     for (const label of scene.labels) {
       ctx.globalAlpha = label.alpha;
       ctx.font = `${label.weight} ${label.size}px "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
@@ -190,6 +181,7 @@ export class MapRenderer {
       ctx.fillText(label.text, label.x, label.y);
     }
     ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
 
     this.drawScaleBar(ctx, scene);
     ctx.fillStyle = this.theme.attribution;

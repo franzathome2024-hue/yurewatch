@@ -252,10 +252,19 @@ ui = new App(store, {
   },
   onRecenter: () => ui?.recenterMap(),
   onZoom: (factor) => ui?.zoomMap(factor),
+  onFrameToggle: () => ui?.toggleFrame(),
 });
 
 const mountTarget = document.getElementById('app') ?? document.body ?? document.documentElement;
 ui.mount(mountTarget);
+
+// `?frame=mainland|archipelago` pins the coverage profile. Used by the map QA
+// harness so both framings are testable at every viewport, and handy for anyone
+// comparing them by hand.
+const frameParam = params.get('frame');
+if (frameParam === 'mainland' || frameParam === 'archipelago') {
+  ui.setFrame(frameParam);
+}
 document.getElementById('boot')?.remove();
 ui.setReduceMotion(prefersReducedMotion);
 
@@ -344,6 +353,7 @@ window.YureWatchBack = () => {
   focus: (lon: number, lat: number) => ui?.focusMapOn(lon, lat),
   zoom: (factor: number) => ui?.zoomMap(factor),
   recenter: () => ui?.recenterMap(),
+  frame: () => ui?.toggleFrame(),
 };
 
 window.YureWatchInfo = () =>

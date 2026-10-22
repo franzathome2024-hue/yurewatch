@@ -27,6 +27,8 @@ export interface AppHandlers {
   describeVoice?: () => string;
   onRecenter: () => void;
   onZoom: (factor: number) => void;
+  /** Switch the map between mainland and full-archipelago framing. */
+  onFrameToggle: () => void;
 }
 
 const NARROW = '(max-width: 900px)';
@@ -66,7 +68,13 @@ export class App {
   /** Tsunami state, visible without opening any panel while a bulletin is in force. */
   private tsunamiChip = el('button', { class: 'tsunamiChip', type: 'button' });
   private modeChip = el('span', { class: 'modeChip' });
-  private mapButtons: { canvas: HTMLElement; zoomIn: HTMLElement; zoomOut: HTMLElement; recenter: HTMLElement } | null = null;
+  private mapButtons: {
+    canvas: HTMLElement;
+    zoomIn: HTMLElement;
+    zoomOut: HTMLElement;
+    recenter: HTMLElement;
+    frame: HTMLElement;
+  } | null = null;
   private view: SideView = 'list';
   private sheetExpanded = false;
   private lastMapSignature = '';
@@ -108,12 +116,17 @@ export class App {
         '<path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
           '<circle cx="12" cy="12" r="4.6" fill="none" stroke="currentColor" stroke-width="1.7"/>',
       ));
+    // Framing toggle: the audit's "separate mainland and full-Japan framing
+    // modes" made explicit, labelled with the target rather than a symbol, and
+    // never hiding which coverage the current frame guarantees.
+    const frame = el('button', { class: 'mapBtn mapBtn--frame', type: 'button' });
     zoomIn.addEventListener('click', () => handlers.onZoom(1.35));
     zoomOut.addEventListener('click', () => handlers.onZoom(1 / 1.35));
     recenter.addEventListener('click', () => handlers.onRecenter());
+    frame.addEventListener('click', () => handlers.onFrameToggle());
 
-    const controls = el('div', { class: 'mapControls', role: 'group' }, zoomIn, zoomOut, recenter);
-    this.mapButtons = { canvas, zoomIn, zoomOut, recenter };
+    const controls = el('div', { class: 'mapControls', role: 'group', 'aria-label': t('map.controlsLabel') }, zoomIn, zoomOut, recenter, frame);
+    this.mapButtons = { canvas, zoomIn, zoomOut, recenter, frame };
 
     this.mapFallback = el('div', { class: 'map__fallback', hidden: 'hidden' });
 
@@ -135,7 +148,9 @@ export class App {
         this.map = new MapView(mapPane, canvas as HTMLCanvasElement, DARK_MAP_THEME, {
           onSelectEvent: (id) => handlers.onSelectEvent(id),
           onError: (message) => this.showMapError(message),
+          onProfileChange: () => this.refreshFrameButton(),
         });
+        this.refreshFrameButton();
         this.pushMapState(this.store.get());
       } catch (err) {
         this.showMapError(t('map.error', { message: String(err) }));
@@ -265,6 +280,7 @@ export class App {
       this.mapButtons.zoomIn.setAttribute('aria-label', t('map.zoomIn'));
       this.mapButtons.zoomOut.setAttribute('aria-label', t('map.zoomOut'));
       this.mapButtons.recenter.setAttribute('aria-label', t('map.recenter'));
+      this.refreshFrameButton();
     }
     this.side.setAttribute('aria-label', t('sheet.label'));
     for (const [view, button] of this.sideTabs) {
@@ -380,6 +396,29 @@ export class App {
 
   focusMapOn(lon: number, lat: number): void {
     this.map?.focusOn(lon, lat);
+  }
+
+  /** Label the framing button with the profile it would switch *to*. */
+  private refreshFrameButton(): void {
+    const btn = this.mapButtons?.frame;
+    if (!btn || !this.map) return;
+    const active = this.map.activeProfile();
+    const next = active === 'mainland' ? 'archipelago' : 'mainland';
+    btn.textContent = next === 'archipelago' ? t('map.frameArchipelago') : t('map.frameMainland');
+    btn.setAttribute('aria-label', t('map.frameSwitch', {
+      to: next === 'archipelago' ? t('map.frameArchipelago') : t('map.frameMainland'),
+    }));
+    btn.setAttribute('data-active', active);
+  }
+
+  setFrame(profile: 'mainland' | 'archipelago'): void {
+    this.map?.setProfile(profile);
+    this.refreshFrameButton();
+  }
+
+  toggleFrame(): void {
+    this.map?.toggleProfile();
+    this.refreshFrameButton();
   }
 
   recenterMap(): void {

@@ -284,25 +284,41 @@ export function buildScene(input: SceneInput): MapScene {
   // never print on top of each other (the live feed often has several events
   // within a few kilometres).
   const placed: Array<{ x: number; y: number; w: number; h: number }> = [];
+  // Markers are already drawn by the time labels are laid out, so their
+  // footprints are reserved first: a label printed across an epicentre symbol is
+  // unreadable and hides the thing the operator is looking for.
+  for (const m of markers) placed.push({ x: m.x, y: m.y, w: m.r * 2 + 2, h: m.r * 2 + 2 });
   const overlaps = (x: number, y: number, w: number, h: number) =>
     placed.some((p) => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < (p.h + h) / 2);
-  const showPrefLabels = zoomRatio > 1.7;
-  for (const pref of geometry.prefectures) {
-    if (!showPrefLabels) break;
-    const screen = worldToScreen(camera, viewport, pref.label);
-    if (screen.x < 0 || screen.y < 0 || screen.x > viewport.width || screen.y > viewport.height) continue;
-    // Only label prefectures that occupy enough screen space to carry text.
-    const w = Math.abs(pref.bbox.maxX - pref.bbox.minX) * camera.scale;
-    const h = Math.abs(pref.bbox.maxY - pref.bbox.minY) * camera.scale;
-    if (w < 46 || h < 24) continue;
-    const labelW = pref.name.length * 11;
-    if (overlaps(screen.x, screen.y, labelW, 13)) continue;
-    placed.push({ x: screen.x, y: screen.y, w: labelW, h: 13 });
+  // ---- place labels (prefectures) -----------------------------------
+  // v0.2 drew no prefecture names at all until the operator had zoomed to 1.7x
+  // of fit, so the default view was an unlabelled outline of Japan — the single
+  // biggest readability gap against the reference. Names are now placed by
+  // priority (largest prefecture first) and culled by overlap and by available
+  // screen room, so the default frame carries the main names and zooming adds
+  // the rest instead of switching them on all at once.
+  const candidates = geometry.prefectures
+    .map((pref) => {
+      const w = Math.abs(pref.bbox.maxX - pref.bbox.minX) * camera.scale;
+      const h = Math.abs(pref.bbox.maxY - pref.bbox.minY) * camera.scale;
+      return { pref, w, h, screen: worldToScreen(camera, viewport, pref.label) };
+    })
+    // Label only what can carry a name legibly at this scale.
+    .filter(({ w, h, screen }) => w >= 34 && h >= 16 && screen.x > 2 && screen.y > 2 && screen.x < viewport.width - 2 && screen.y < viewport.height - 2)
+    .sort((a, b) => b.w * b.h - a.w * a.h);
+
+  const labelCap = zoomRatio > 2.2 ? 47 : zoomRatio > 1.2 ? 24 : 12;
+  for (const { pref, screen } of candidates) {
+    if (labels.length >= labelCap) break;
+    const labelW = pref.name.length * 11.5;
+    if (overlaps(screen.x, screen.y, labelW, 14)) continue;
+    placed.push({ x: screen.x, y: screen.y, w: labelW, h: 14 });
     labels.push({
       text: pref.name,
       x: screen.x,
       y: screen.y,
-      alpha: Math.min(0.85, 0.3 + zoomRatio * 0.18),
+      // Legible at fit, but held back so it never competes with markers.
+      alpha: Math.min(0.9, 0.52 + zoomRatio * 0.16),
       size: 11,
       weight: 500,
       color: theme.label,
@@ -325,13 +341,15 @@ export function buildScene(input: SceneInput): MapScene {
     // Skip the callout for markers hidden behind the EEW crosshair.
     if (alert?.epicenter && m.selected) continue;
     const boxW = name.length * 11 + 8;
-    const boxX = m.x + m.r + 6 + boxW / 2 - 4;
-    if (overlaps(boxX, m.y + 4, boxW, 13)) continue;
-    placed.push({ x: boxX, y: m.y + 4, w: boxW, h: 13 });
+    // Anchor is the box centre (the renderer centres text), offset just clear of
+    // the marker so the symbol stays visible.
+    const boxX = m.x + m.r + 8 + boxW / 2;
+    if (overlaps(boxX, m.y, boxW, 14)) continue;
+    placed.push({ x: boxX, y: m.y, w: boxW, h: 14 });
     labels.push({
       text: name,
-      x: m.x + m.r + 6,
-      y: m.y + 4,
+      x: boxX,
+      y: m.y,
       alpha: m.selected ? 1 : 0.8,
       size: m.selected ? 12 : 11,
       weight: m.selected ? 700 : 500,

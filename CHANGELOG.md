@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.3.0 — 2026-10-22
+
+Map-correctness release: framing is now derived from the geometry it promises
+instead of a hand-written box, and the map's visual hierarchy was fixed against
+the reference application. Nothing decorative was added.
+
+### Fixed — geographic framing and clipping
+
+- **Islands were being cropped off the bottom of the map.** `PRIMARY_VIEW_BOUNDS`
+  stopped at 26.0 °N while the shipped data runs to 24.2 °N (Ogasawara and the Izu
+  volcanoes), so those rings were fitted outside the frame: coverage ran 54 px past
+  the canvas edge on desktop, 57 px on tablet portrait, 59 px after a resize. Framing
+  is now computed from the rings each profile includes (`src/map/framing.ts`), so what
+  a profile claims is what the camera frames, by construction.
+- **Two explicit framing profiles**, both user-selectable from a new map control and
+  reflected in `debugState()`: `mainland` (Hokkaidō/Honshū/Shikoku/Kyūshū, everything
+  from 30 °N) and `archipelago` (adds the Nansei chain and Ogasawara). Landscape panes
+  open with `mainland`, portrait panes with `archipelago`. `?frame=…` pins either.
+- **Fixed pixel padding on short panes**: 36 of 154 px of Android-landscape height went
+  to padding. Insets are now derived from the viewport with a floor and ceiling.
+- **Camera clamping** no longer lets the country leave the canvas; a hard pan put the
+  viewport edge 1.5° east of Hokkaidō with nothing on screen. The clamp keeps at least
+  a third of Japan visible and still permits inspecting the edges.
+- **Neighbouring countries are no longer truncated inside the view.** Context land is
+  clipped at 114–162 °E / 16–56 °N instead of 127.5–148 °E, which removes the straight
+  vertical edge that used to cut China partway across the map, and brings Taiwan, the
+  Philippines, Mongolia and the Northern Marianas into the backdrop.
+- `meta.geometryBounds` now reports the **measured** extent, separately from the clip
+  box, so the metadata stops advertising 148 °E as a coordinate the data reaches.
+
+### Changed — map readability
+
+- **Prefecture names are on the map at the default zoom.** Previously nothing was
+  labelled until 1.7× fit, leaving an unlabelled outline. Labels are placed by
+  priority, culled against other labels *and* marker footprints, and increase with zoom.
+- Label anchors are now centred in both the renderer and the collision test; the two
+  disagreed, so adjacent names overlapped and text printed across epicentre markers.
+- Flat ocean: the vertical gradient plus radial "lift" behind Japan was decoration that
+  tinted the sea unevenly and made land/water contrast depend on where you looked.
+- Slightly stronger context-land stroke so a neighbour coast does not dissolve at fit.
+
+### Added — verification
+
+- `tools/map-qa.mjs` + `npm run qa:map`: loads the built app in Chromium across eight
+  viewport classes (desktop, laptop, tablet landscape/portrait, narrow Android
+  portrait/landscape, post-launch resize, alert-strip height change), reads the live
+  camera, re-projects the shipped geometry, and checks it against the rendered pixels.
+  88 checks, screenshots in `docs/qa/`. **71/88 before this release, 88/88 after.**
+- `tests/framing.test.ts` (21 tests): profile membership, detached-islet rule,
+  projection round trip, and "the declared rect is inside the canvas" at five viewports.
+- `docs/MAP_QA.md` with the viewport matrix, checks and reproduced root causes.
+
 ## v0.2.1 — 2026-10-22
 
 Data and honesty release: a real tsunami forecast-region layer, spoken alerts with
