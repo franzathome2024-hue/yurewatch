@@ -56,7 +56,10 @@ npm run qa:map                           # same, default label
 | Sakishima island probe (probe-only) | 1024×768, five islands | 1 |
 
 Screenshots for every case: `docs/qa/before/` (pre-fix commit `c5d51f9`) and
-`docs/qa/after/` (current).
+`docs/qa/after/` (the v0.3.0 run these tables report). The **current** release's
+run, including the five Sakishima probe images, is `docs/qa/v040/` with its report
+in `docs/qa/v040.md`; `docs/qa/comparison.png` is a hand-assembled v0.2 → v0.3.0
+contact sheet — a historical record of the framing regression, not the current UI.
 
 ## Result
 
