@@ -130,8 +130,11 @@ export class App {
 
     this.mapFallback = el('div', { class: 'map__fallback', hidden: 'hidden' });
 
+    // The banner is the container; a bordered badge inside it was a container
+    // inside a container for a single word. The tag keeps the label, loses the
+    // second rounded rectangle.
     this.simBanner = el('div', { class: 'simBanner', hidden: 'hidden' },
-      badge(t('demo.simBadge'), 'sim'),
+      el('span', { class: 'simBanner__tag', text: t('demo.simBadge') }),
       this.simBannerText,
     );
 
@@ -309,11 +312,15 @@ export class App {
 
     /* ---- simulation marking ------------------------------------------ */
     const sim = demo || state.alert?.simulated === true || state.events.some((e) => e.simulated);
-    this.simBanner.hidden = !sim;
+    // One notice per fact. A simulated alert banner already carries the
+    // SIMULATION badge and footer line, so the floating map banner is dropped
+    // for its lifetime — previously this only happened below 900 px, and on a
+    // 740x360 landscape phone the duplicate covered 15 % of the map. Decided in
+    // JS rather than in a media query so it cannot drift from the banner again.
+    const alertStatesSimulation = state.alert?.simulated === true;
+    this.simBanner.hidden = !sim || alertStatesSimulation;
     this.root.classList.toggle('app--sim', sim);
-    // Drives the compact phone treatment: with a live alert the banner carries
-    // the SIMULATION marking itself, so the map's duplicate badge is dropped and
-    // the banner is tightened to keep the map usable.
+    // Drives the compact phone treatment for an alert in force.
     this.root.classList.toggle('app--alert', Boolean(state.alert));
     this.updateTsunamiChip(state);
     this.root.dataset.conn = state.health.state;

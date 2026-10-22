@@ -252,7 +252,7 @@ button {
   font-size: 11.5px;
   line-height: 1;
   padding: 0 var(--sp2);
-  min-height: 30px;
+  min-height: 34px;
   min-width: 44px;
   cursor: pointer;
 }
@@ -273,8 +273,8 @@ button {
 
 .hdr__btn {
   appearance: none;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   background: transparent;
@@ -346,7 +346,7 @@ button {
 }
 
 .modeChip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
@@ -505,7 +505,7 @@ button {
 }
 
 .banner__scaleLabel {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   opacity: 0.85;
   white-space: nowrap;
@@ -527,7 +527,7 @@ button {
 }
 
 .banner__fact dt {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-3);
   margin-bottom: 1px;
 }
@@ -548,7 +548,7 @@ button {
 }
 
 .banner__arrivalLabel {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-3);
 }
 
@@ -565,7 +565,7 @@ button {
 }
 
 .banner__hint {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-3);
 }
 
@@ -632,7 +632,7 @@ button {
 
 .areaPill__kind {
   color: var(--text-3);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .banner__more,
@@ -716,16 +716,28 @@ button {
   top: var(--sp2);
   left: var(--sp2);
   display: flex;
-  align-items: center;
-  gap: var(--sp2);
-  max-width: min(420px, calc(100% - 120px));
-  padding: var(--sp1) var(--sp2);
-  background: rgba(41, 30, 56, 0.94);
-  border: 1px solid rgba(176, 123, 232, 0.5);
-  border-radius: var(--r2);
+  align-items: baseline;
+  gap: 6px;
+  max-width: min(430px, calc(100% - 130px));
+  /* 3 px padding + 11 px/1.3 text = 25 px tall: it sits on the map, so every
+     pixel it claims is a pixel of geography the operator cannot see. */
+  padding: 3px 7px;
+  background: rgba(41, 30, 56, 0.95);
+  border: 1px solid rgba(176, 123, 232, 0.42);
+  border-radius: var(--r1);
   font-size: 11px;
+  line-height: 1.3;
   color: #ecdcff;
   z-index: 4;
+}
+
+/* Plain tag, not a badge: no second border, no second radius, no fill. */
+.simBanner__tag {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #d9b8ff;
 }
 
 .simBanner__text {
@@ -741,7 +753,59 @@ button {
   flex-direction: column;
   gap: var(--sp1);
   z-index: 4;
+  /* Never taller than the pane it sits in. Without this the column grew upward
+     out of a short map: at 740x360 its top edge was 51 px above the pane, so the
+     zoom-in button was clipped away and the column ran under the legend. */
+  max-height: calc(100% - 2 * var(--sp1));
+  max-width: calc(100% - 2 * var(--sp1));
 }
+
+/* Short panes (landscape phones, small desktop windows): lay the controls out
+   horizontally along the bottom so they cannot collide with the legend, the
+   scale bar or each other, and shrink them to keep 4 of them inside 154 px. */
+/* Alert banner on a landscape phone: 218 px of a 360 px viewport left the map
+   150 px tall. Everything is kept — nothing is hidden — but the spacing, the
+   intensity block and the fact row are compressed so the map keeps ~200 px. */
+@media (max-height: 460px) and (max-width: 900px) {
+  .alert--active {
+    padding: var(--sp1) var(--sp2);
+    gap: 6px;
+  }
+
+  .banner__body {
+    gap: var(--sp2);
+  }
+
+  .banner__scale {
+    min-width: 74px;
+    padding: 2px var(--sp2);
+  }
+
+  .banner__scaleValue {
+    font-size: 21px;
+  }
+
+  .banner__facts {
+    gap: var(--sp3);
+  }
+
+  .banner__fact dd {
+    font-size: 13px;
+  }
+
+  .banner__arrival {
+    padding-left: var(--sp2);
+  }
+
+  .banner__arrivalValue {
+    font-size: 15px;
+  }
+
+  .banner__note {
+    padding-top: 6px;
+  }
+}
+
 
 .mapBtn {
   appearance: none;
@@ -800,7 +864,7 @@ button {
 
 .mapBtn--legend {
   width: auto;
-  height: 34px;
+  height: 38px;
   padding: 0 var(--sp2);
   display: inline-flex;
   align-items: center;
@@ -841,7 +905,7 @@ button {
 
 .legend__sub {
   margin: 0 0 var(--sp2);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-3);
 }
 
@@ -856,7 +920,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-2);
 }
 
@@ -916,7 +980,7 @@ button {
   margin: var(--sp2) 0 0;
   padding-top: var(--sp2);
   border-top: 1px solid var(--line-soft);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-3);
 }
 
@@ -946,7 +1010,7 @@ button {
 .sideTab {
   appearance: none;
   flex: 1;
-  min-height: 34px;
+  min-height: 38px;
   padding: 0 var(--sp2);
   background: transparent;
   border: 0;
@@ -1039,16 +1103,24 @@ button {
 
 .feed__head {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 64px 56px;
+  /* Same tracks as .feed__button so the labels sit over their own columns. */
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   white-space: nowrap;
   gap: var(--sp2);
   padding: var(--sp1) var(--sp3);
   border-bottom: 1px solid var(--line-soft);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   flex: none;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.feed__headRight {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--sp2);
 }
 
 .feed__headMag,
@@ -1748,7 +1820,7 @@ button {
   padding: 1px 5px;
   border-radius: var(--r1);
   border: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--text-2);
@@ -1935,7 +2007,7 @@ button {
   }
 
   .sheet__peekHint {
-    font-size: 10.5px;
+    font-size: 11px;
     color: var(--text-3);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2045,16 +2117,11 @@ button {
   }
 
   .banner__note {
-    font-size: 10.5px;
+    font-size: 11px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-  }
-
-  /* The banner already says SIMULATION; the map badge would only cover the map. */
-  .app--alert .simBanner {
-    display: none;
   }
 
   .simBanner {
@@ -2081,7 +2148,7 @@ button {
 
   .banner__times {
     gap: var(--sp2);
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
   .banner__arrival {
@@ -2110,6 +2177,29 @@ button {
 }
 
 /* --------------------------------------------------- motion & printing -- */
+
+/* Touch-sized layouts keep the visual size but guarantee a 44 px target. The
+   measured sizes were 52x30 (language), 34x34 (info), 64x34 (legend) and 139x34
+   (tabs) — all below the 44 px minimum the project claims in docs/UI.md. */
+@media (max-width: 900px) {
+  .langSwitch__btn {
+    min-height: 40px;
+    padding-inline: var(--sp2);
+  }
+
+  .hdr__btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sideTab {
+    min-height: 44px;
+  }
+
+  .mapBtn--legend {
+    min-height: 40px;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -2179,4 +2269,86 @@ button {
 
 .tsunamiChip:hover {
   filter: brightness(1.15);
+}
+
+/* ------------------------------------------- responsive: short viewports -- */
+
+/* A landscape phone with an alert in force: 48 + 28 + 193 px of chrome left 83 px
+   for a workspace whose map claims min-height 150 px and whose sheet claims 64,
+   so the grid overflowed and the bottom sheet — the only way into the event list
+   on a phone — was pushed below the fold and clipped. The banner keeps priority
+   but becomes scrollable instead of unconstrained, the map gives up its 150 px
+   floor, and the sheet keeps a slimmer but real peek bar. */
+@media (max-height: 560px) and (max-width: 900px) {
+  /* Budget at 360 px tall: 48 header + 28 strip + 16 work padding + 44 sheet +
+     84 map = 220, so the banner may claim 140 px and scrolls internally beyond
+     that. Nothing is removed from it; the map and the way into the event list
+     both stay on screen. 84 px is also the shortest map that holds the legend
+     toggle above the horizontal control row without either colliding. */
+  .alertSlot {
+    box-sizing: border-box;
+    max-height: calc(100dvh - var(--hdr-h) - var(--strip-h) - 144px);
+    /* `auto` on a grid item is content-sized, so max-height alone did nothing. */
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 0;
+  }
+
+  .mapPane {
+    min-height: 84px;
+  }
+
+  .app[data-sheet="peek"] .side {
+    height: 44px;
+  }
+
+  /* The sheet keeps a 1 px top border, so its peek row is 2 px shorter. */
+  .sheet__handle {
+    height: 42px;
+  }
+
+  .sheet__peekHint {
+    display: none;
+  }
+}
+
+
+/* short panes: horizontal map controls ---------------------------------- */
+
+@media (max-height: 560px) {
+  /* Short panes: one horizontal row of 34 px controls along the bottom edge,
+     and the legend toggle tucked into the 4 px gutter above it. At 78 px of map
+     (an alert on a 360 px-tall phone) the old bottom-anchored column stood
+     196 px tall — it started above the pane itself. */
+  .mapControls {
+    flex-direction: row;
+    align-items: center;
+    right: 4px;
+    bottom: 4px;
+  }
+
+  .legend {
+    top: 4px;
+    right: 4px;
+  }
+
+  .mapBtn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mapBtn--frame {
+    min-width: 34px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  .mapBtn--legend {
+    width: auto;
+    /* min-height from the phone rules would otherwise win over `height`. */
+    height: 34px;
+    min-height: 34px;
+    padding: 0 6px;
+  }
 }

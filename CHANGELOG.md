@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.4.0 — 2026-10-22
+
+Milestone 1: evidence-based interface refinement. Every change below was measured
+on the shipped build first (Playwright, 6 viewports × 10 demo states = 60 layout
+states); the audit and the before/after table live in `docs/UI.md`.
+
+### Fixed
+
+- **Map controls no longer escape a short pane.** `.mapControls` is bounded by the
+  pane it belongs to, and below 560 px of viewport height it becomes a horizontal
+  row along the bottom edge. At 740×360 the column used to start 51 px above the
+  map and run under the 凡例 button.
+- **An alert can no longer push the bottom sheet off-screen.** On a landscape
+  phone the alert slot is capped and scrolls internally, the banner compacts
+  (217 → 193 px of content) and the sheet keeps a 44 px peek. Before: the map pane
+  ended 99 px below the fold and the only way into the event list was clipped.
+- **A simulated alert states SIMULATION once.** The floating map banner is dropped
+  while the alert banner (badge + footer line) is on screen, decided in
+  `src/ui/app.ts` instead of inside a media query.
+- **The list header sits over its own columns**: `42px 1fr auto`, the same tracks
+  as the rows, with magnitude right-aligned over the magnitudes.
+- **The header fits a 360 px phone** (info button was clipped by 15 px). In demo
+  mode the connection label no longer repeats "DEMO"; the status strip already
+  says it, and `aria-label` keeps the full wording.
+- **Metadata is ≥ 11 px and controls are ≥ 34 px** (40–44 px on touch layouts);
+  six label classes were 10–10.5 px and nine controls were 30–38 px.
+- The map attribution is reserved against the control row instead of a fixed
+  64 px, so it no longer runs underneath the buttons on a short pane.
+
+### Tooling
+
+- `tools/ui-audit.mjs` (`npm run qa:ui`): 60-state layout matrix, screenshot
+  capture and a `compare <ref>` mode that builds the previous tag in a git
+  worktree for the before/after sheet.
+
 ## v0.3.0 — 2026-10-22
 
 Map-correctness release: framing is now derived from the geometry it promises

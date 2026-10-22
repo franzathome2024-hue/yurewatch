@@ -1,4 +1,4 @@
-# YureWatch — Japan Earthquake & EEW Viewer (v0.3.0)
+# YureWatch — Japan Earthquake & EEW Viewer (v0.4.0)
 
 A dark, map-first viewer for **Japan's earthquake information, Earthquake Early
 Warnings (緊急地震速報) and tsunami bulletins**, shipping as an installable
@@ -134,10 +134,10 @@ simulations.
 
 ### Android APK
 
-**Download the built APK (v0.3.0):**
-[yurewatch-0.3.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.3.0/yurewatch-0.3.0.apk)
-— SHA-256 `8932f5a432d8c230a03212c569098fe7ef9a83d77c6db8db92b2b17e99912f9e`
-(also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.3.0/SHA256SUMS)).
+**Download the built APK (v0.4.0):**
+[yurewatch-0.4.0.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/yurewatch-0.4.0.apk)
+— its SHA-256 is published next to it in
+[SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/SHA256SUMS).
 That checksum is for the **release asset as published by CI**. A local
 `bash tools/build-apk.sh` produces a byte-different file (different throwaway
 signing key, 181 KiB), so compare against the release not against a local build.
@@ -153,12 +153,12 @@ is reset by a reinstall.
 To build it yourself instead:
 
 ```bash
-# Build (produces build/yurewatch-0.3.0.apk)
+# Build (produces build/yurewatch-0.4.0.apk)
 npm ci
 bash tools/build-apk.sh
 
 # Install on a connected device
-adb install -r build/yurewatch-0.3.0.apk
+adb install -r build/yurewatch-0.4.0.apk
 ```
 
 The app opens directly into the map. It does **not** start a local server, ask

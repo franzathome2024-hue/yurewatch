@@ -1,4 +1,7 @@
 import { hasIntensity, scaleStyle } from '../core/intensity';
+
+/** Below this pane height the map controls are laid out as a bottom row. */
+const SHORT_PANE_HEIGHT = 200;
 import type { Point, Viewport } from './geo';
 import { worldToScreen } from './geo';
 import type { MapGeometry } from './mapData';
@@ -187,8 +190,11 @@ export class MapRenderer {
     ctx.fillStyle = this.theme.attribution;
     ctx.font = '10px "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif';
     ctx.textAlign = 'right';
-    // Clear of the zoom controls in the bottom-right corner.
-    ctx.fillText(scene.attribution, width - 64, height - 8);
+    // Clear of the map controls in the bottom-right corner. On a short pane they
+    // lie in a horizontal row (148 px wide) instead of a 44 px column, so the
+    // text used to run underneath the buttons.
+    const controlsInset = height < SHORT_PANE_HEIGHT ? 168 : 64;
+    ctx.fillText(scene.attribution, width - controlsInset, height - 8);
     ctx.textAlign = 'left';
   }
 

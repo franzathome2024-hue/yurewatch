@@ -145,6 +145,29 @@ describe('application shell', () => {
     expect(app.root.querySelector('.simBanner')?.hasAttribute('hidden')).toBe(false);
   });
 
+  it('keeps one SIMULATION marking: the banner replaces the map badge during a simulated alert', () => {
+    // Documented in docs/UI.md but implemented only inside the <=900px media
+    // query until Milestone 1, so desktop and tablet showed the floating map
+    // banner, the banner's own SIMULATION badge and its footer line at once.
+    const parsed = parseEew(eewWarning, T);
+    if (!parsed.ok) throw new Error(parsed.reason);
+    const simulated = { ...parsed.value, simulated: true };
+
+    const { app, store } = boot((s) => ({ ...s, mode: 'demo' }));
+    expect(app.root.querySelector('.simBanner')?.hasAttribute('hidden')).toBe(false);
+
+    store.dispatch({ type: 'batch', events: [], eews: [simulated], tsunami: null, at: T, rejected: 0 });
+    app.update(store.get());
+    
+    // The alert banner still says it is a simulation; nothing else needs to.
+    expect(app.root.querySelector('.alert')?.textContent).toContain('SIMULATION');
+    expect(app.root.querySelectorAll('.simBanner:not([hidden])').length).toBe(0);
+
+    store.dispatch({ type: 'dismiss-alert' });
+    app.update(store.get());
+    expect(app.root.querySelector('.simBanner')?.hasAttribute('hidden')).toBe(false);
+  });
+
   it('switches the whole shell to English on a locale change', () => {
     const { app } = boot();
     expect(app.root.querySelector('.sideTab')?.textContent).toBe('最近の地震');
@@ -220,6 +243,21 @@ describe('alert strip vs banner', () => {
     expect(app.root.textContent).toContain('茨城県南部');
     // The alert switches the shell into its compact phone treatment.
     expect(app.root.classList.contains('app--alert')).toBe(true);
+  });
+});
+
+describe('list header alignment', () => {
+  it('describes the same columns the rows use', () => {
+    const { app } = boot((s) =>
+      reduce(s, { type: 'batch', events: [quakeEvent], eews: [], tsunami: null, at: T, rejected: 0 }),
+    );
+    const head = app.root.querySelector('.feed__head')!;
+    const row = app.root.querySelector('.feed__button')!;
+    // Scale column and gap must be identical; magnitude + count share one
+    // right-aligned track so the labels cannot drift off their numbers.
+    expect(head.children.length).toBe(3);
+    expect(row.children.length).toBe(3);
+    expect(head.querySelector('.feed__headRight')?.children.length).toBe(2);
   });
 });
 

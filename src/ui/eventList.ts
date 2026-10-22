@@ -22,7 +22,13 @@ export function createEventList(opts: {
   const headScale = el('span', { class: 'feed__headScale' });
   const headMain = el('span', { class: 'feed__headMain' });
   const headMag = el('span', { class: 'feed__headMag' });
-  const head = el('div', { class: 'feed__head', 'aria-hidden': 'true' }, headScale, headMain, headMag, count);
+  // Magnitude and the event count share the last column, which is sized `auto`
+  // in the rows themselves — otherwise the header labels drift off the columns
+  // they describe (the header used a fixed 46/64/56 track set, rows used 42/auto).
+  // Count first, then the column label, so "規模" right-aligns with the M
+  // values below it instead of the count pushing it off its own column.
+  const headRight = el('div', { class: 'feed__headRight' }, count, headMag);
+  const head = el('div', { class: 'feed__head', 'aria-hidden': 'true' }, headScale, headMain, headRight);
 
   const root = el('section', { class: 'panel panel--feed' }, head, list);
 

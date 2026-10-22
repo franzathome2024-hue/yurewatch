@@ -68,10 +68,16 @@ export function createHeader(handlers: { onOpenInfo: () => void } = { onOpenInfo
       const health = state.health.state;
       conn.dataset.conn = health;
       conn.classList.toggle('is-demo', demo);
-      connText.textContent = demo ? `${t('mode.demo')}・${connectionLabel(health)}` : connectionLabel(health);
+      // The status strip below already carries a DEMO chip and the simulation
+      // banner repeats it; prefixing the connection label here made the header
+      // wider than a 360 px phone could hold, pushing the info button off-screen.
+      connText.textContent = connectionLabel(health);
+      conn.dataset.demo = demo ? 'true' : 'false';
       conn.setAttribute(
         'aria-label',
-        t('conn.aria', { state: demo ? `${t('mode.demo')}・${connectionLabel(health)}` : connectionLabel(health) }),
+        t('conn.aria', {
+          state: demo ? `${t('mode.demo')}・${connectionLabel(health)}` : connectionLabel(health),
+        }),
       );
 
       clockValue.textContent = formatJstClock(state.now);

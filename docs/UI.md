@@ -79,8 +79,9 @@ as values change.
    labelled by kind (発生 / 発表 / 受信) and never conflated.
 4. **Status is always visible.** Connection state (with words, not only a dot),
    data age, and whether the data is simulated all live in fixed positions.
-5. **Touch targets ≥ 30 px** (46 px for the map controls, 48 dp preferred), on
-   the smallest target (360×800).
+5. **Touch targets ≥ 34 px on desktop, ≥ 40 px on touch layouts** (map controls
+   34–44 px depending on pane height; nothing below 34 px anywhere). Measured on
+   the smallest target (360×800) and re-checked in `npm run qa:ui`.
 6. **Both languages fit.** English strings are longer; column headers truncate
    with an ellipsis rather than pushing the layout, and the sidebar width is
    shared between both locales.
@@ -98,6 +99,82 @@ as values change.
   legend.
 - No screenshot-as-UI: the map is a live canvas, the feed is live state.
 - No marketing claims. Wording stays descriptive ("viewer", "relay", "estimate").
+
+## Milestone 1 — evidence-based refinement (v0.4.0)
+
+Everything below was measured on the shipped `dist/yurewatch.html` with Playwright
+before it was changed: six viewports (1920×1080, 1366×768, 820×1180, 390×844,
+740×360, 360×800) × the ten demo states, plus computed-style dumps and rect
+captures. No physical device was used; every number is headless Chromium.
+
+### What was actually wrong
+
+| # | Finding | Evidence (before) |
+| --- | --- | --- |
+| 1 | Map controls escaped a short pane and collided with the legend | 740×360: `.mapControls` ran from y=75 to y=271 inside a pane of y=126–280 — 51 px above the pane top and under the 凡例 button |
+| 2 | A simulated alert showed the simulation notice three times | 1366×768 `demo=warning`: floating banner + `SIMULATION` badge + footer line; the dedupe existed only inside the ≤900 px media query |
+| 3 | The list header did not sit over its own columns | header `46px 1fr 64px 56px`, row `42px 1fr auto` |
+| 4 | The bottom sheet was pushed off-screen by a tall alert | 740×360 `demo=warning`: map pane bottom 459 px in a 360 px viewport; `.side`, `.sheet__handle` and `.mapControls` all clipped |
+| 5 | Nine control classes under 44 px, six label classes under 11 px | `langSwitch__btn` 52×30, `hdr__btn` 34×34, `mapBtn--legend` 64×34, `sideTab` 34 px tall; `modeChip`, `badge--sim`, four `feed__head` labels at 10 px, banner meta at 10.5 px |
+| 6 | The header overflowed at 360 px, clipping the info button | `scrollWidth` 375 vs `clientWidth` 360 |
+| 7 | `docs/UI.md` claimed "touch targets ≥ 30 px (46 px for map controls)" while the measured map buttons were 44 px and five other controls were 30–38 px | the doc and the CSS disagreed |
+
+Two impressions from the screenshots were **not** backed by the CSS and were
+left alone: earthquake rows are already hairline-separated with no radius or
+fill, and the stylesheet has no gradients and only two shadows. The "card-like
+rows" reading came from the screenshot, not from the stylesheet.
+
+### What changed
+
+1. **Map controls fit their pane.** `.mapControls` gets `max-height`/`max-width`
+   derived from the pane, and below 560 px of viewport height it lays out as a
+   horizontal row of 34 px buttons along the bottom edge with the legend toggle
+   in the 4 px gutter above it. The renderer reserves 168 px for that row instead
+   of the 64 px column when the pane is shorter than 200 px, so the attribution
+   no longer runs under the buttons.
+2. **One notice per fact.** A simulated alert drops the floating map banner for
+   as long as it is on screen, in `src/ui/app.ts` rather than in a media query, so
+   it cannot drift from the banner again. The banner is also lighter: the bordered
+   inner badge became a plain `SIMULATION` tag (one box, not two), 40 px → 25 px
+   tall at desktop widths.
+3. **The alert keeps the map and the sheet on screen.** On a landscape phone the
+   alert slot is capped (`calc(100dvh - header - strip - 144px)`), scrolls
+   internally, the banner drops to compact spacing and the sheet peek is 44 px.
+   Nothing is hidden: the banner scrolls instead.
+4. **List header matches the rows** (`42px 1fr auto` in both) and the magnitude
+   label right-aligns with the magnitude values; the event count moved to its
+   left instead of pushing `規模` off its column.
+5. **Sizes that the doc already promised**: 11 px floor for interface metadata
+   (map canvas labels keep their own smaller sizes), and 38–44 px targets
+   (`hdr__btn` 38, `langSwitch__btn` 34, `sideTab` 38, `mapBtn--legend` 38; 40/44
+   on touch layouts).
+6. **Header fits 360 px.** In demo mode the connection label no longer repeats
+   "DEMO" — the status strip chip and the simulation banner already say it — and
+   `aria-label` keeps the full wording.
+
+### Result
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Defects across 6 viewports × 10 demo states (60 combinations) | 10 | 0 |
+| 740×360 EEW warning: map pane bottom / viewport | 459 px / 360 px (sheet clipped) | 308 px / 360 px |
+| 740×360 EEW warning: controls inside pane, legend overlap | no / yes | yes / no |
+| Simulation notices on a simulated alert (desktop) | 3 | 1 |
+| Floating banner share of the map at 740×360 | 15 % | 0 % (alert states it) |
+| Alert height at 740×360 (same content) | 217 px | 193 px, scrolls above 140 px |
+| Control classes under 44 px / label classes under 11 px | 9 / 6 | 0 / 0 |
+| Header `scrollWidth` at 360 px | 375 | 360 |
+| List header tracks | `46 1fr 64 56` | `42 1fr auto` (same as rows) |
+
+Known limits, not fixed here: at 740×360 the map is 84 px tall, so the country is
+legible only as a silhouette and the user should tap 本土 or zoom; the alert
+scrolls in that state. On a tall phone the archipelago frame shows a thin Ryūkyū
+chain across open ocean — switching to 本土 is one tap.
+
+Reproduce: `npm run qa:ui` prints the 60-state matrix, and
+`node tools/ui-audit.mjs compare v0.3.0` builds the previous tag in a temporary
+git worktree, captures both screenshot sets and writes
+`docs/qa/ui-comparison.png`.
 
 ## Where the code lives
 

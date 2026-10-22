@@ -105,22 +105,22 @@ Build: `dist/yurewatch.html` · 8 viewport cases
 ## Android landscape
 
 - viewport `740x360` @2x
-- map host x8 y126 724x154 · canvas 724x154
-- camera centre (0.88623, 0.38867) scale 2161.6
-- projected coverage x299 y10 103x119 → fill x 14.3% / y 77.3%; margins L299 R321 T10 B25
+- map host x8 y126 724x174 · canvas 724x174
+- camera centre (0.88560, 0.38884) scale 2470.3
+- projected coverage x292 y10 118x136 → fill x 16.3% / y 78.2%; margins L292 R314 T10 B28
 - profile: mainland
 
 - PASS intended coverage fully on canvas — none
 - PASS no feature half-cut at an edge — 0 partially cut
-- PASS map fills the space left for it (dominant axis >=97%) — 100.0% of the inset box (x 15.2%, y 100.0%; raw canvas x 14.3%, y 77.3%)
+- PASS map fills the space left for it (dominant axis >=97%) — 100.0% of the inset box (x 17.3%, y 100.0%; raw canvas x 16.3%, y 78.2%)
 - PASS map is centred in its inset box — offset 0px, 0px
 - PASS canvas is not stretched (aspect within 0.5%) — 0.0% aspect drift
-- PASS canvas backing store matches CSS box — 1448x308 vs 1448x308
-- PASS renderer painted land — 14.0% of pixels
-- PASS land covers a plausible share of the frame (3-60%) — 14.0%
-- PASS predicted land is actually painted (>=95% of visible samples) — 31/32 visible land samples lit (77 sub-pixel islets skipped)
-- PASS open ocean stays water (at most 1 overlay-covered sample) — 1/6 ocean samples lit
-- PASS no overlay covers the map centre — controls at x677 y75 46x196
+- PASS canvas backing store matches CSS box — 1448x348 vs 1448x348
+- PASS renderer painted land — 15.3% of pixels
+- PASS land covers a plausible share of the frame (3-60%) — 15.3%
+- PASS predicted land is actually painted (>=95% of visible samples) — 39/40 visible land samples lit (69 sub-pixel islets skipped)
+- PASS open ocean stays water (at most 1 overlay-covered sample) — 0/6 ocean samples lit
+- PASS no overlay covers the map centre — controls at x579 y261 148x34
 
 ## Resize after launch (1440x900 -> 900x1200)
 
@@ -145,21 +145,21 @@ Build: `dist/yurewatch.html` · 8 viewport cases
 ## Alert strip changes height (EEW warning)
 
 - viewport `1366x768` @1x
-- map host x12 y286 958x470 · canvas 958x470
-- camera centre (0.88269, 0.38703) scale 7120.4
-- projected coverage x298 y26 341x392 → fill x 35.6% / y 83.4%; margins L298 R320 T26 B52
+- map host x12 y287 958x469 · canvas 958x469
+- camera centre (0.88269, 0.38703) scale 7102.2
+- projected coverage x298 y26 340x391 → fill x 35.5% / y 83.4%; margins L298 R320 T26 B52
 - profile: mainland
-- alert strip: map host 620px → 470px
+- alert strip: map host 620px → 469px
 
 - PASS intended coverage fully on canvas — none
 - PASS no feature half-cut at an edge — 0 partially cut
-- PASS map fills the space left for it (dominant axis >=97%) — 100.0% of the inset box (x 38.5%, y 100.0%; raw canvas x 35.6%, y 83.4%)
+- PASS map fills the space left for it (dominant axis >=97%) — 100.0% of the inset box (x 38.4%, y 100.0%; raw canvas x 35.5%, y 83.4%)
 - PASS map is centred in its inset box — offset 0px, 0px
 - PASS canvas is not stretched (aspect within 0.5%) — 0.0% aspect drift
-- PASS canvas backing store matches CSS box — 958x470 vs 958x470
-- PASS renderer painted land — 30.5% of pixels
-- PASS land covers a plausible share of the frame (3-60%) — 30.5%
-- PASS predicted land is actually painted (>=95% of visible samples) — 44/46 visible land samples lit (62 sub-pixel islets skipped)
+- PASS canvas backing store matches CSS box — 958x469 vs 958x469
+- PASS renderer painted land — 30.4% of pixels
+- PASS land covers a plausible share of the frame (3-60%) — 30.4%
+- PASS predicted land is actually painted (>=95% of visible samples) — 45/46 visible land samples lit (62 sub-pixel islets skipped)
 - PASS open ocean stays water (at most 1 overlay-covered sample) — 0/9 ocean samples lit
 - PASS no overlay covers the map centre — controls at x917 y559 44x188
 

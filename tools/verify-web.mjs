@@ -129,8 +129,19 @@ async function main() {
   const demoPage = await context.newPage();
   await demoPage.goto(`${base}?demo=warning`, { waitUntil: 'load' });
   await demoPage.waitForTimeout(3_500);
-  check('demo mode shows the SIMULATION banner', await demoPage.locator('.simBanner').isVisible());
-  check('demo alert panel is marked SIMULATION', (await demoPage.locator('.alert').textContent()).includes('SIMULATION'));
+  // One notice per fact: while a simulated alert banner is on screen it already
+  // carries the SIMULATION badge and footer line, so the floating map banner is
+  // suppressed. It must reappear once the alert is dismissed.
+  check('simulated alert states SIMULATION once', (await demoPage.locator('.alert').textContent()).includes('SIMULATION'));
+  check(
+    'no duplicate SIMULATION banner over the map',
+    (await demoPage.locator('.simBanner').isVisible()) === false,
+  );
+  const demoIdle = await context.newPage();
+  await demoIdle.goto(`${base}?demo=normal`, { waitUntil: 'load' });
+  await demoIdle.waitForTimeout(1_500);
+  check('SIMULATION banner shows when no alert is on screen', await demoIdle.locator('.simBanner').isVisible());
+  await demoIdle.close();
   check('demo mode is stated in the status strip', (await demoPage.locator('.modeChip').textContent()).includes('DEMO'));
 
   // --- 4. lifecycle hooks the APK calls -----------------------------------
