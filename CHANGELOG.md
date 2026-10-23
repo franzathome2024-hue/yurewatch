@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.5.3 — 2026-10-23 (GitHub pre-release)
+
+### Changed
+
+- **Viewer redesigned for use during an earthquake.** The intensity
+  colours are now the JMA's own published shindo scheme (near-white 1,
+  sky 2, blue 3, pale yellow 4, yellow 5弱, orange-yellow 5強, orange
+  6弱, red 6強, dark red 7) across map pins, list chips and the EEW
+  readout, replacing the in-house ramp. Two unit tests that pinned the
+  old hexes now pin the JMA ones. Chrome went to neutral drum-housing
+  greys (`#141518` housing, `#1f2124` panels, `#f2f1ec` paper text) so
+  the only saturated colours on screen mean something: the shindo ramp,
+  JIS warning red `#e60012`, caution `#f6aa00`, and the live green. The
+  blue interactive accent and the purple simulation colour are gone.
+- **A 警報 now floods the EEW window.** Full warning-red ground, white
+  text, white-on-red state chip. The left-edge accent bar it replaces
+  could be missed at a glance. Cancelled, stale and offline states are
+  unchanged and still visually distinct. The predicted-maximum-intensity
+  readout grew (15 px to 19 px) and keeps its shindo fill.
+- **Simulation reads as a placard, not a state.** Paper-white ground,
+  ink text. No hue that could be mistaken for data.
+- **Boot screen matched to the housing palette**, gothic wordmark
+  (the serif experiment is gone), white loading trace.
+- All 13 `docs/screenshots/` captures regenerated from this build.
+  Layout geometry is untouched: map-qa 109/109 and ui-audit 60/60
+  pass unmodified.
+
 ## v0.5.2 — 2026-10-23 (GitHub pre-release)
 
 ### Changed

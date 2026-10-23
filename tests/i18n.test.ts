@@ -204,7 +204,7 @@ describe('localized formatting', () => {
     expect(scaleStyle(45).label).toBe('5-');
     expect(scaleStyle(50).longLabel).toBe('Intensity 5 upper');
     // Colours are language-independent.
-    expect(scaleStyle(50).fill).toBe('#f4511e');
+    expect(scaleStyle(50).fill).toBe('#ff9900'); // JMA published 5強 orange-yellow
   });
 
   it('localizes domain vocabulary', () => {

@@ -89,7 +89,7 @@ describe('buildScene — markers', () => {
     const s = scene({ events: [quake()] });
     const m = s.markers[0]!;
     expect(m.r).toBeGreaterThanOrEqual(6);
-    expect(m.fill).toBe('#3b6fe0'); // 震度1 blue
+    expect(m.fill).toBe('#f2f2ff'); // 震度1 near-white in the JMA published scheme
     expect(m.intensity).toBe(10);
   });
 

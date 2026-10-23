@@ -3,10 +3,10 @@ import type { JmaScale } from './models';
 /**
  * JMA seismic intensity helpers.
  *
- * The colour ramp follows the *convention* used by JMA/public broadcasters
- * (cool → warm as intensity rises) but is a palette designed in-house for this
- * app's dark theme; it is not the JMA's own stylesheet. Text/background pairs
- * were checked for >= 4.5:1 contrast.
+ * The colour ramp is the JMA's own published shindo scheme (the colours of
+ * the 震度分布図 and broadcast graphics): near-white 1, sky 2, blue 3, pale
+ * yellow 4, yellow 5弱, orange-yellow 5強, orange 6弱, red 6強, dark red 7.
+ * Text/background pairs were checked for >= 4.5:1 contrast.
  */
 
 import { getLocale } from '../i18n';
@@ -35,18 +35,18 @@ interface ScaleDefinition {
  * shared everywhere, so a language switch only needs a re-render.
  */
 const TABLE: Record<number, ScaleDefinition> = {
-  [-1]: { code: -1, labelJa: '—', labelEn: '—', fill: '#2a3644', text: '#c9d6e5' },
-  [0]: { code: 0, labelJa: '0', labelEn: '0', fill: '#3a4a5e', text: '#e8eef6' },
-  [10]: { code: 10, labelJa: '1', labelEn: '1', fill: '#3b6fe0', text: '#ffffff' },
-  [20]: { code: 20, labelJa: '2', labelEn: '2', fill: '#17b0a7', text: '#04211f' },
-  [30]: { code: 30, labelJa: '3', labelEn: '3', fill: '#ffd23f', text: '#221a00' },
-  [40]: { code: 40, labelJa: '4', labelEn: '4', fill: '#ffa726', text: '#241200' },
-  [45]: { code: 45, labelJa: '5弱', labelEn: '5-', fill: '#ff7043', text: '#2a0d00' },
-  [50]: { code: 50, labelJa: '5強', labelEn: '5+', fill: '#f4511e', text: '#ffffff' },
-  [55]: { code: 55, labelJa: '6弱', labelEn: '6-', fill: '#e53935', text: '#ffffff' },
-  [60]: { code: 60, labelJa: '6強', labelEn: '6+', fill: '#b71c1c', text: '#ffffff' },
-  [70]: { code: 70, labelJa: '7', labelEn: '7', fill: '#7f0000', text: '#ffffff' },
-  [99]: { code: 99, labelJa: '以上', labelEn: 'or higher', fill: '#7f0000', text: '#ffffff' },
+  [-1]: { code: -1, labelJa: '—', labelEn: '—', fill: '#33363b', text: '#d8d8d2' },
+  [0]: { code: 0, labelJa: '0', labelEn: '0', fill: '#3c4046', text: '#ecece6' },
+  [10]: { code: 10, labelJa: '1', labelEn: '1', fill: '#f2f2ff', text: '#23232e' },
+  [20]: { code: 20, labelJa: '2', labelEn: '2', fill: '#a0d8ef', text: '#0b2a3c' },
+  [30]: { code: 30, labelJa: '3', labelEn: '3', fill: '#0041ff', text: '#ffffff' },
+  [40]: { code: 40, labelJa: '4', labelEn: '4', fill: '#fae696', text: '#2e2a08' },
+  [45]: { code: 45, labelJa: '5弱', labelEn: '5-', fill: '#ffe600', text: '#2a2300' },
+  [50]: { code: 50, labelJa: '5強', labelEn: '5+', fill: '#ff9900', text: '#2b1600' },
+  [55]: { code: 55, labelJa: '6弱', labelEn: '6-', fill: '#ff7300', text: '#2b1200' },
+  [60]: { code: 60, labelJa: '6強', labelEn: '6+', fill: '#ff2800', text: '#2b0800' },
+  [70]: { code: 70, labelJa: '7', labelEn: '7', fill: '#a50021', text: '#ffffff' },
+  [99]: { code: 99, labelJa: '以上', labelEn: 'or higher', fill: '#a50021', text: '#ffffff' },
 };
 
 const UNKNOWN_DEF = TABLE[-1] as ScaleDefinition;
