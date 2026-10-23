@@ -1,6 +1,11 @@
 # Changelog
 
-## v0.5.0 — 2026-10-22
+## v0.5.0 — 2026-10-22 (GitHub pre-release)
+
+Published as a **pre-release**: the attached APK is the branch-CI build of
+this commit, signed with a throwaway key (the project release key is not
+configured yet). It cannot be installed as an update over any other build;
+uninstall first. See `docs/RELEASING.md`, "Pre-releases".
 
 ### Added
 

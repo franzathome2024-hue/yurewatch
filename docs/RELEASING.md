@@ -25,7 +25,7 @@ identity — losing it means every user must uninstall/reinstall.
 | Build | Key | Installs over previous? |
 | --- | --- | --- |
 | Tagged release (`v*`) | **Project release key** (repository secrets) | Yes — over any earlier release-key build |
-| Branch / PR CI artefact | Throwaway key generated on the runner | No (smoke-test artefact only; never published as a release) |
+| Branch / PR CI artefact | Throwaway key generated on the runner | No — smoke-test artefact; publishable only on an explicitly labelled pre-release (see *Pre-releases* below) |
 | v0.4.0 and earlier releases | Ephemeral CI key (historical) | No — one-time uninstall required (see Migration in `CHANGELOG.md`) |
 
 Rules, enforced by `.github/workflows/android.yml`:
@@ -37,6 +37,27 @@ Rules, enforced by `.github/workflows/android.yml`:
    leaves the runner.
 3. Non-tag builds may use the throwaway key so contributors get a runnable
    artefact without access to secrets.
+
+### Pre-releases
+
+Rule 1 governs **full releases**. There is exactly one exception, made so
+testers can run real builds before the project release key exists:
+
+- A branch-CI (throwaway-key) APK may be attached to a GitHub release only
+  when that release is flagged **Pre-release**, the tag is the commit the
+  artefact was built from, and the release notes state plainly that the APK
+  is **not signed with the project release key**, so it cannot be installed
+  as an update over any other build (including v0.4.0 and earlier) and
+  later release-key builds cannot update over it — uninstall first, in
+  both directions. `SHA256SUMS` must be attached so the download can be
+  verified exactly like a full release.
+- Cutting the `v*` tag for such a pre-release still triggers the tag
+  pipeline, whose signing-key step fails until the secrets are configured.
+  That failure is Rule 1 working as intended — the pre-release APK comes
+  from the branch CI artefact of the same commit, not from the tag build.
+- The moment the release key is set up, this exception is moot: tag builds
+  produce release-key-signed APKs, and a pre-release is just an early
+  signed build. Never present a throwaway-key build as a stable release.
 
 ### Setting up the release key (one time, repository owner)
 
