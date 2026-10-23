@@ -11,7 +11,7 @@
     />
     <link rel="canonical" href="https://franzathome2024-hue.github.io/yurewatch/" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#070c12" />
+    <meta name="theme-color" content="#17100a" />
 
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
 
@@ -70,19 +70,37 @@
     </script>
 
     <style>
+      /* Display serif for headings, self-hosted (two small latin subsets;
+         Japanese glyphs fall back to the platform serif). */
+      @font-face {
+        font-family: "Fraunces";
+        src: url("assets/fonts/fraunces-latin-600.woff2") format("woff2");
+        font-weight: 600;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Fraunces";
+        src: url("assets/fonts/fraunces-latin-700.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
       /* ---------------------------------------------------------- tokens -- */
+      /* One warm temperature throughout, one accent (amber, the app's own). */
       :root {
-        --bg: #070c12;
-        --surface: #0d141d;
-        --surface-2: #121c27;
-        --border: #1e2b3a;
-        --text: #e9eff7;
-        --muted: #9fb3c8;
-        --accent: #ffd23f;
-        --link: #7cc0ff;
-        --danger: #ff8a6b;
-        --radius: 12px;
-        --maxw: 1080px;
+        --bg: #171009;
+        --band: #1e140b;
+        --surface: #251910;
+        --surface-2: #2e2012;
+        --border: #3d2c1c;
+        --text: #f4ecdc;
+        --muted: #c9b18c;
+        --accent: #ffc93c;
+        --accent-ink: #241503;
+        --maxw: 1100px;
+        --maxw-wide: 1260px;
       }
 
       *,
@@ -115,14 +133,33 @@
         -webkit-text-size-adjust: 100%;
       }
 
+      ::selection {
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: "Fraunces", "Hiragino Mincho ProN", "YuMincho", "Noto Serif JP", serif;
+        font-weight: 600;
+        line-height: 1.15;
+      }
+
       .wrap {
         max-width: var(--maxw);
         margin: 0 auto;
         padding: 0 20px;
       }
+      .wrap--wide {
+        max-width: var(--maxw-wide);
+      }
 
       a {
-        color: var(--link);
+        color: var(--accent);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1px;
       }
 
       a:focus-visible,
@@ -147,19 +184,21 @@
       }
 
       /* ---------------------------------------------------------- header -- */
+      /* Slim bar; the nav is plain text links, not a tab strip. */
       .site-header {
         position: sticky;
         top: 0;
         z-index: 50;
-        background: rgba(7, 12, 18, 0.92);
+        background: rgba(23, 16, 9, 0.94);
         backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--border);
       }
       .site-header .wrap {
         display: flex;
-        align-items: center;
-        gap: 16px;
-        min-height: 60px;
+        align-items: baseline;
+        gap: 22px;
+        min-height: 56px;
+        padding-top: 8px;
+        padding-bottom: 8px;
         flex-wrap: wrap;
       }
       .brand {
@@ -178,47 +217,45 @@
       }
       .nav {
         display: flex;
-        gap: 6px;
+        gap: 20px;
         flex-wrap: wrap;
       }
       .nav a {
         color: var(--muted);
         text-decoration: none;
         font-size: 0.92rem;
-        padding: 6px 10px;
-        border-radius: 8px;
+        padding: 4px 0;
       }
       .nav a:hover {
         color: var(--text);
-        background: var(--surface);
+        text-decoration: underline;
+        text-underline-offset: 5px;
       }
 
       /* ------------------------------------------------------------ hero -- */
+      /* One real button on this page; everything else is a text link. */
       .hero {
-        padding: 64px 0 40px;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg);
+        padding: 84px 0 64px;
       }
       .eyebrow {
-        display: inline-block;
         font-size: 0.75rem;
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--accent);
         font-weight: 700;
-        margin: 0 0 14px;
+        margin: 0 0 16px;
       }
       h1 {
-        font-size: clamp(2rem, 5.5vw, 3.1rem);
-        line-height: 1.1;
-        margin: 0 0 16px;
-        letter-spacing: -0.02em;
+        font-weight: 700;
+        font-size: clamp(2.7rem, 6.5vw, 4.1rem);
+        line-height: 1.05;
+        margin: 0 0 20px;
       }
       .lede {
-        font-size: clamp(1.02rem, 2.2vw, 1.2rem);
+        font-size: clamp(1.05rem, 2.2vw, 1.28rem);
         color: var(--muted);
-        max-width: 62ch;
-        margin: 0 0 28px;
+        max-width: 72ch;
+        margin: 0 0 32px;
       }
       .cta-row {
         display: flex;
@@ -230,12 +267,11 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 13px 22px;
+        padding: 14px 26px;
         border-radius: 10px;
         font-weight: 650;
-        font-size: 1rem;
+        font-size: 1.02rem;
         text-decoration: none;
-        border: 1px solid transparent;
         transition: transform 0.12s ease, background 0.15s ease;
       }
       .btn:hover {
@@ -243,98 +279,283 @@
       }
       .btn--primary {
         background: var(--accent);
-        color: #1a1200;
+        color: var(--accent-ink);
       }
       .btn--primary:hover {
-        background: #ffdd6b;
+        background: #ffd35c;
       }
-      .btn--ghost {
-        background: var(--surface);
+      .alt-actions {
+        margin: 18px 0 0;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+      .alt-actions a {
         color: var(--text);
-        border-color: var(--border);
       }
-      .btn--ghost:hover {
-        background: var(--surface-2);
+      .alt-actions .sep {
+        margin: 0 10px;
+        color: var(--border);
       }
       .cta-note {
-        font-size: 0.86rem;
+        font-size: 0.88rem;
         color: var(--muted);
-        margin: 14px 0 0;
+        margin: 22px 0 0;
+        max-width: 76ch;
       }
 
       /* -------------------------------------------------------- sections -- */
+      /* Separation comes from space and a warmer band, not ruled boxes. */
       section {
-        padding: 56px 0;
-        border-bottom: 1px solid var(--border);
+        padding: 72px 0;
+        scroll-margin-top: 72px;
+      }
+      section.band {
+        background: var(--band);
       }
       h2 {
-        font-size: clamp(1.4rem, 3.4vw, 1.9rem);
-        margin: 0 0 10px;
-        letter-spacing: -0.01em;
+        font-size: clamp(1.6rem, 3.4vw, 2.15rem);
+        margin: 0 0 12px;
       }
       .sub {
         color: var(--muted);
-        margin: 0 0 28px;
+        margin: 0 0 30px;
         max-width: 68ch;
       }
 
-      /* ----------------------------------------------------- screenshots -- */
-      .shots {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 18px;
+      /* A plain block set off by one amber rule. No box, no fill. */
+      .callout {
+        border-left: 2px solid var(--accent);
+        padding: 2px 0 2px 24px;
+        margin: 30px 0 0;
+        max-width: 74ch;
       }
+      .callout h3 {
+        margin: 0 0 8px;
+        font-size: 1.15rem;
+      }
+      .callout p {
+        margin: 0 0 10px;
+      }
+      .callout ul {
+        margin: 8px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      .callout li {
+        margin-bottom: 6px;
+      }
+      .callout p:last-child,
+      .callout ul:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ----------------------------------------------------- screenshots -- */
+      /* Lead capture full width, two caption-beside pairs, then a loose
+         uneven strip. No card grid, no figure boxes. */
       figure {
         margin: 0;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
       }
       figure img {
         display: block;
         width: 100%;
         height: auto;
-        background: #0a1017;
+        background: #120c06;
       }
       figcaption {
-        padding: 12px 14px;
-        font-size: 0.88rem;
+        padding-top: 12px;
+        font-size: 0.9rem;
         color: var(--muted);
-        border-top: 1px solid var(--border);
+        max-width: 56ch;
       }
       figcaption strong {
         color: var(--text);
         display: block;
-        font-size: 0.95rem;
+        font-size: 0.98rem;
         margin-bottom: 2px;
+      }
+      .shot-lead {
+        margin-bottom: 64px;
+      }
+      .duo {
+        display: grid;
+        grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+        gap: 36px;
+        align-items: center;
+        margin-bottom: 64px;
+      }
+      .duo figcaption {
+        padding-top: 0;
+      }
+      @media (min-width: 761px) {
+        .duo--flip img {
+          order: 2;
+        }
+        .duo--flip figcaption {
+          order: 1;
+          text-align: right;
+          justify-self: end;
+        }
+      }
+      .strip {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 44px 28px;
+        align-items: start;
+      }
+      .strip figure:nth-child(1) {
+        grid-column: span 7;
+      }
+      .strip figure:nth-child(2) {
+        grid-column: span 5;
+      }
+      .strip figure:nth-child(3) {
+        grid-column: span 5;
+      }
+      .strip figure:nth-child(4) {
+        grid-column: span 7;
+      }
+      .strip figure:nth-child(5) {
+        grid-column: span 4;
+      }
+      .strip figure:nth-child(6) {
+        grid-column: span 3;
+      }
+      .strip figure:nth-child(7) {
+        grid-column: span 5;
+      }
+      @media (max-width: 760px) {
+        .duo {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0;
+          margin-bottom: 48px;
+        }
+        .duo figcaption {
+          padding-top: 12px;
+        }
+        .strip figure {
+          grid-column: 1 / -1 !important;
+        }
+        .shot-lead {
+          margin-bottom: 48px;
+        }
       }
 
       /* -------------------------------------------------------- features -- */
-      .features {
+      /* A numbered typographic list in two uneven groups (3 + 2), with the
+         sixth topic demoted to a closing prose block. No cards. */
+      .feats {
+        list-style: none;
+        counter-reset: feat;
+        padding: 0;
+        margin: 0;
+        max-width: 78ch;
+      }
+      .feats li {
+        counter-increment: feat;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 16px;
+        grid-template-columns: 3.4rem minmax(0, 1fr);
+        gap: 6px 18px;
+        margin-bottom: 34px;
+      }
+      .feats li:nth-child(4) {
+        margin-top: 58px;
+      }
+      .feats li::before {
+        content: counter(feat, decimal-leading-zero);
+        font-family: "Fraunces", "Hiragino Mincho ProN", "YuMincho", serif;
+        font-weight: 600;
+        font-size: 1.45rem;
+        line-height: 1.3;
+        color: var(--accent);
+      }
+      .feats h3 {
+        margin: 4px 0 6px;
+        font-size: 1.22rem;
+      }
+      .feats p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.96rem;
+      }
+      @media (min-width: 900px) {
+        .feats li:nth-child(2),
+        .feats li:nth-child(5) {
+          margin-left: 3.5rem;
+        }
+      }
+      .feat-note {
+        margin: 52px 0 0 3.4rem;
+        max-width: 68ch;
+      }
+      @media (max-width: 560px) {
+        .feat-note {
+          margin-left: 0;
+        }
+      }
+      .feat-note h3 {
+        margin: 0 0 6px;
+        font-size: 1.22rem;
+      }
+      .feat-note p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.96rem;
+      }
+
+      /* ---------------------------------------------------------- tables -- */
+      .table-scroll {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.92rem;
+        min-width: 560px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 11px 14px 11px 0;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--text);
+        font-weight: 650;
+      }
+      td {
+        color: var(--muted);
+      }
+
+      /* ------------------------------------------------------ limitations -- */
+      .limits {
         list-style: none;
         padding: 0;
         margin: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px 56px;
+        max-width: 92ch;
       }
-      .features li {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 20px;
+      @media (min-width: 820px) {
+        .limits {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+        .limits li:nth-child(5) {
+          max-width: 46ch;
+        }
       }
-      .features h3 {
-        margin: 0 0 8px;
-        font-size: 1.03rem;
+      .limits li {
+        margin-bottom: 22px;
       }
-      .features p {
+      .limits h3 {
+        margin: 0 0 5px;
+        font-size: 1.08rem;
+      }
+      .limits p {
         margin: 0;
         color: var(--muted);
-        font-size: 0.93rem;
+        font-size: 0.94rem;
       }
 
       /* --------------------------------------------------------- history -- */
@@ -368,64 +589,8 @@
         margin-right: 10px;
       }
 
-      /* ---------------------------------------------------------- tables -- */
-      .table-scroll {
-        overflow-x: auto;
-      }
-      table {
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 0.92rem;
-        min-width: 560px;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 11px 14px;
-        border-bottom: 1px solid var(--border);
-        vertical-align: top;
-      }
-      th {
-        color: var(--text);
-        font-weight: 650;
-        background: var(--surface);
-      }
-      td {
-        color: var(--muted);
-      }
-
-      /* ------------------------------------------------------------ note -- */
-      .callout {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-left: 3px solid var(--danger);
-        border-radius: var(--radius);
-        padding: 18px 20px;
-        margin: 0 0 20px;
-      }
-      .callout--warn {
-        border-left-color: var(--accent);
-      }
-      .callout h3 {
-        margin: 0 0 8px;
-        font-size: 1.02rem;
-      }
-      .callout p:last-child,
-      .callout ul:last-child {
-        margin-bottom: 0;
-      }
-      .callout ul {
-        margin: 8px 0 0;
-        padding-left: 20px;
-        color: var(--muted);
-      }
-      .callout li {
-        margin-bottom: 6px;
-      }
-
       code {
         background: var(--surface-2);
-        border: 1px solid var(--border);
         border-radius: 5px;
         padding: 1px 6px;
         font-size: 0.9em;
@@ -433,33 +598,29 @@
       }
       pre {
         background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 16px;
+        border-radius: 10px;
+        padding: 18px;
         overflow-x: auto;
         font-size: 0.88rem;
         line-height: 1.6;
+        max-width: 78ch;
       }
       pre code {
         background: none;
-        border: none;
         padding: 0;
       }
 
       /* ---------------------------------------------------------- footer -- */
       footer {
-        padding: 40px 0 56px;
+        padding: 48px 0 60px;
         color: var(--muted);
         font-size: 0.9rem;
       }
-      footer a {
-        color: var(--link);
-      }
       .footer-links {
         display: flex;
-        gap: 18px;
+        gap: 22px;
         flex-wrap: wrap;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
       }
 
       .visually-hidden {
@@ -479,11 +640,11 @@
       <div class="wrap">
         <a class="brand" href="./">
           <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">
-            <rect width="64" height="64" rx="16" fill="#0d141d" />
+            <rect width="64" height="64" rx="16" fill="#241a10" />
             <path
               d="M8 34h10l4-12 6 24 6-18 4 6h18"
               fill="none"
-              stroke="#ffd23f"
+              stroke="#ffc93c"
               stroke-width="5"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -520,19 +681,15 @@
               Open Live Viewer
               <span aria-hidden="true">&rarr;</span>
             </a>
-            <a
-              class="btn btn--ghost"
-              href="https://github.com/franzathome2024-hue/yurewatch/releases/latest"
-            >
-              Download Android APK
-            </a>
-            <a
-              class="btn btn--ghost"
-              href="https://github.com/franzathome2024-hue/yurewatch/releases"
-            >
-              Release history
-            </a>
           </div>
+          <p class="alt-actions">
+            <a href="https://github.com/franzathome2024-hue/yurewatch/releases/latest"
+              >Download the Android APK</a
+            ><span class="sep" aria-hidden="true">·</span
+            ><a href="https://github.com/franzathome2024-hue/yurewatch/releases"
+              >Release history on GitHub</a
+            >
+          </p>
           <p class="cta-note">
             The whole viewer is one self-contained HTML file (about 700 KB). It runs in a
             browser tab on desktop or a phone, or inside the Android app, with no account and
@@ -578,8 +735,8 @@
       </section>
 
       <!-- ----------------------------------------------------- screenshots -->
-      <section id="screenshots" aria-labelledby="shots-h">
-        <div class="wrap">
+      <section id="screenshots" class="band" aria-labelledby="shots-h">
+        <div class="wrap wrap--wide">
           <h2 id="shots-h">Screenshots</h2>
           <p class="sub">
             These are captures of the actual viewer (desktop at 1440×900, phone at 360×800),
@@ -588,35 +745,53 @@
             app's built-in demo scenarios, because a real 警報 does not arrive on request;
             simulated data always carries the SIMULATION banner in-frame, as it does here.
           </p>
-          <div class="shots">
-            <figure>
-              <img
-                src="assets/screenshots/desktop-live.png"
-                alt="YureWatch desktop view: recent earthquakes plotted on a dark map of Japan with a list panel"
-                width="2880"
-                height="1800"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>
-                <strong>Live earthquake feed</strong>
-                Recent events plotted by epicentre, sized and coloured by observed intensity.
-              </figcaption>
-            </figure>
-            <figure>
-              <img
-                src="assets/screenshots/desktop-eew-warning.png"
-                alt="YureWatch desktop view showing an Earthquake Early Warning banner from a simulated demo scenario, with predicted intensity and warning areas"
-                width="2880"
-                height="1800"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>
-                <strong>Earthquake Early Warning (警報) · simulation</strong>
-                Warning state with predicted maximum intensity and the areas named by the bulletin.
-              </figcaption>
-            </figure>
+
+          <figure class="shot-lead">
+            <img
+              src="assets/screenshots/desktop-live.png"
+              alt="YureWatch desktop view: recent earthquakes plotted on a dark map of Japan with a list panel"
+              width="2880"
+              height="1800"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>
+              <strong>Live earthquake feed</strong>
+              Recent events plotted by epicentre, sized and coloured by observed intensity.
+            </figcaption>
+          </figure>
+
+          <figure class="duo">
+            <img
+              src="assets/screenshots/desktop-eew-warning.png"
+              alt="YureWatch desktop view showing an Earthquake Early Warning banner from a simulated demo scenario, with predicted intensity and warning areas"
+              width="2880"
+              height="1800"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>
+              <strong>Earthquake Early Warning (警報) · simulation</strong>
+              Warning state with predicted maximum intensity and the areas named by the bulletin.
+            </figcaption>
+          </figure>
+
+          <figure class="duo duo--flip">
+            <img
+              src="assets/screenshots/desktop-tsunami.png"
+              alt="YureWatch desktop view with the JMA tsunami forecast region layer highlighted along the coast, from a simulated demo scenario"
+              width="2880"
+              height="1800"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>
+              <strong>Tsunami forecast regions · simulation</strong>
+              JMA 津波予報区 shaded by grade when a bulletin names them.
+            </figcaption>
+          </figure>
+
+          <div class="strip">
             <figure>
               <img
                 src="assets/screenshots/desktop-eew-cancelled.png"
@@ -630,20 +805,6 @@
                 <strong>Cancelled warning · simulation</strong>
                 A cancellation is a distinct, clearly labelled state, never quietly blended into
                 "no warning".
-              </figcaption>
-            </figure>
-            <figure>
-              <img
-                src="assets/screenshots/desktop-tsunami.png"
-                alt="YureWatch desktop view with the JMA tsunami forecast region layer highlighted along the coast, from a simulated demo scenario"
-                width="2880"
-                height="1800"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>
-                <strong>Tsunami forecast regions · simulation</strong>
-                JMA 津波予報区 shaded by grade when a bulletin names them.
               </figcaption>
             </figure>
             <figure>
@@ -745,74 +906,84 @@
             One codebase, one build. The same file is the Android app's screen and this site's
             viewer, which is why the screenshots above and the app cannot quietly drift apart.
           </p>
-          <ul class="features">
+          <ol class="feats">
             <li>
-              <h3>Earthquake information</h3>
-              <p>
-                JMA bulletins arrive in stages: 震度速報 first, then 震源情報, then 各地の震度.
-                YureWatch merges those revisions into a single event instead of listing the same
-                earthquake three times. Restart the app offline and it restores up to 30 recent
-                events from local storage, labelled 保存済みの履歴 (saved history), never dressed
-                up as live data. EEW and tsunami state is not stored at all, so yesterday's
-                warning cannot reappear as if it were new.
-              </p>
+              <div>
+                <h3>Earthquake information</h3>
+                <p>
+                  JMA bulletins arrive in stages: 震度速報 first, then 震源情報, then 各地の震度.
+                  YureWatch merges those revisions into a single event instead of listing the same
+                  earthquake three times. Restart the app offline and it restores up to 30 recent
+                  events from local storage, labelled 保存済みの履歴 (saved history), never dressed
+                  up as live data. EEW and tsunami state is not stored at all, so yesterday's
+                  warning cannot reappear as if it were new.
+                </p>
+              </div>
             </li>
             <li>
-              <h3>Earthquake Early Warning</h3>
-              <p>
-                A compact monitor window sits at the top-right of the map, in the style of
-                dedicated seismic monitors: state （警報 / 予報 / 更新 / 取消）, the earliest
-                arrival time the source actually published (with a countdown), predicted maximum
-                intensity, epicentre, magnitude and depth. A new event moves the camera once;
-                the following serials do not, because nobody needs their map yanked around every
-                few seconds. 訓練 (test) bulletins are badged, never make a sound, and never move
-                the camera.
-              </p>
+              <div>
+                <h3>Earthquake Early Warning</h3>
+                <p>
+                  A compact monitor window sits at the top-right of the map, in the style of
+                  dedicated seismic monitors: state （警報 / 予報 / 更新 / 取消）, the earliest
+                  arrival time the source actually published (with a countdown), predicted maximum
+                  intensity, epicentre, magnitude and depth. A new event moves the camera once;
+                  the following serials do not, because nobody needs their map yanked around every
+                  few seconds. 訓練 (test) bulletins are badged, never make a sound, and never move
+                  the camera.
+                </p>
+              </div>
             </li>
             <li>
-              <h3>Tsunami bulletins</h3>
-              <p>
-                When a bulletin names forecast regions, the map shades those 津波予報区 by grade
-                （大津波警報 down to 若干の海面変動）. When no bulletin exists, the map shows
-                nothing and the window shows ---. There are no estimated wave heights anywhere
-                in the app, because the feed does not provide observed heights and guessing
-                would be worse than blank space.
-              </p>
+              <div>
+                <h3>Tsunami bulletins</h3>
+                <p>
+                  When a bulletin names forecast regions, the map shades those 津波予報区 by grade
+                  （大津波警報 down to 若干の海面変動）. When no bulletin exists, the map shows
+                  nothing and the window shows ---. There are no estimated wave heights anywhere
+                  in the app, because the feed does not provide observed heights and guessing
+                  would be worse than blank space.
+                </p>
+              </div>
             </li>
             <li>
-              <h3>The map itself</h3>
-              <p>
-                A hand-rolled canvas renderer, not a tile library: pan, zoom and the EEW pulse
-                hold 60 fps in the project's own benchmark, so nothing fancier was warranted.
-                The coastline starts from Natural Earth, whose 1:10m data quietly drops
-                inhabited islands in the Sakishima chain; a 16-island fill from 国土数値情報
-                (MLIT) puts Ishigaki, Iriomote, Yonaguni and Hateruma back, and the QA suite
-                probes each of them by name so they cannot vanish in a refactor.
-              </p>
+              <div>
+                <h3>The map itself</h3>
+                <p>
+                  A hand-rolled canvas renderer, not a tile library: pan, zoom and the EEW pulse
+                  hold 60 fps in the project's own benchmark, so nothing fancier was warranted.
+                  The coastline starts from Natural Earth, whose 1:10m data quietly drops
+                  inhabited islands in the Sakishima chain; a 16-island fill from 国土数値情報
+                  (MLIT) puts Ishigaki, Iriomote, Yonaguni and Hateruma back, and the QA suite
+                  probes each of them by name so they cannot vanish in a refactor.
+                </p>
+              </div>
             </li>
             <li>
-              <h3>Diagnostics, and saying "I don't know"</h3>
-              <p>
-                The info panel shows the plumbing: connection state, last successful fetch,
-                rejected records, duplicates dropped. The feed is polled every 20 seconds when
-                quiet and every 6 seconds during an alert, well inside the provider's published
-                limits. A telegram with no usable timestamp is treated as historical, never as
-                breaking news. Stale is labelled stale, offline is labelled offline, and an
-                unknown depth renders as --- rather than a very precise-looking 0 km.
-              </p>
+              <div>
+                <h3>Diagnostics, and saying "I don't know"</h3>
+                <p>
+                  The info panel shows the plumbing: connection state, last successful fetch,
+                  rejected records, duplicates dropped. The feed is polled every 20 seconds when
+                  quiet and every 6 seconds during an alert, well inside the provider's published
+                  limits. A telegram with no usable timestamp is treated as historical, never as
+                  breaking news. Stale is labelled stale, offline is labelled offline, and an
+                  unknown depth renders as --- rather than a very precise-looking 0 km.
+                </p>
+              </div>
             </li>
-            <li>
-              <h3>Japanese and English</h3>
-              <p>
-                Japanese is the default because the source material is Japanese; the English
-                translation is complete, and a parity test fails the build if a message exists
-                in one language but not the other. Clock times are always JST, whatever the
-                device thinks its timezone is. Spoken announcements use the device's own TTS
-                voices and tell you plainly when no suitable voice is installed, instead of
-                reading Japanese aloud in the wrong voice.
-              </p>
-            </li>
-          </ul>
+          </ol>
+          <div class="feat-note">
+            <h3>Japanese and English</h3>
+            <p>
+              Japanese is the default because the source material is Japanese; the English
+              translation is complete, and a parity test fails the build if a message exists
+              in one language but not the other. Clock times are always JST, whatever the
+              device thinks its timezone is. Spoken announcements use the device's own TTS
+              voices and tell you plainly when no suitable voice is installed, instead of
+              reading Japanese aloud in the wrong voice.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -877,72 +1048,55 @@
               </tbody>
             </table>
           </div>
-          <div class="callout callout--warn" style="margin-top: 20px">
-            <h3>Unaffiliated</h3>
-            <p>
-              This project is not affiliated with, endorsed by, or connected to the Japan
-              Meteorological Agency, NIED, or P2P地震情報.
-            </p>
-          </div>
+          <p class="callout">
+            <strong>Unaffiliated.</strong> This project is not affiliated with, endorsed by, or
+            connected to the Japan Meteorological Agency, NIED, or P2P地震情報.
+          </p>
         </div>
       </section>
 
       <!-- ----------------------------------------------------- limitations -->
-      <section id="limitations" aria-labelledby="lim-h">
+      <section id="limitations" class="band" aria-labelledby="lim-h">
         <div class="wrap">
           <h2 id="lim-h">Known limitations</h2>
           <p class="sub">Stated plainly rather than hidden.</p>
-          <div class="table-scroll">
-            <table>
-              <caption class="visually-hidden">Known limitations</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Limitation</th>
-                  <th scope="col">Consequence</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Polling, not push</td>
-                  <td>
-                    Data is fetched from <code>/history</code> every 6–20 s, so a warning can arrive
-                    later than it would over the provider's WebSocket.
-                  </td>
-                </tr>
-                <tr>
-                  <td>警報 only for EEW</td>
-                  <td>
-                    The public relay forwards 緊急地震速報（警報）; lower-grade 予報 content is not
-                    distributed through it.
-                  </td>
-                </tr>
-                <tr>
-                  <td>No measured tsunami heights</td>
-                  <td>Only 津波予報 (forecasts) are shown, not observed wave heights.</td>
-                </tr>
-                <tr>
-                  <td>NIED real-time intensity not connected</td>
-                  <td>
-                    Station-level 震度 comes from JMA bulletins, not the NIED real-time feed.
-                  </td>
-                </tr>
-                <tr>
-                  <td>Third-party relay</td>
-                  <td>
-                    P2P地震情報 is an unpaid, unwarranted service with no availability guarantee. If
-                    it is down, YureWatch says so instead of showing stale data as current.
-                  </td>
-                </tr>
-                <tr>
-                  <td>Browser speech depends on the platform</td>
-                  <td>
-                    Voice announcements need a system TTS voice for the active language; the viewer
-                    reports honestly when none is installed.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ul class="limits">
+            <li>
+              <h3>Polling, not push</h3>
+              <p>
+                Data is fetched from <code>/history</code> every 6–20 s, so a warning can arrive
+                later than it would over the provider's WebSocket.
+              </p>
+            </li>
+            <li>
+              <h3>警報 only for EEW</h3>
+              <p>
+                The public relay forwards 緊急地震速報（警報）; lower-grade 予報 content is not
+                distributed through it.
+              </p>
+            </li>
+            <li>
+              <h3>What the feed cannot give you</h3>
+              <p>
+                Only 津波予報 (forecasts) are shown, never observed wave heights; and station-level
+                震度 comes from JMA bulletins, not the NIED real-time intensity feed.
+              </p>
+            </li>
+            <li>
+              <h3>Third-party relay</h3>
+              <p>
+                P2P地震情報 is an unpaid, unwarranted service with no availability guarantee. If
+                it is down, YureWatch says so instead of showing stale data as current.
+              </p>
+            </li>
+            <li>
+              <h3>Browser speech depends on the platform</h3>
+              <p>
+                Voice announcements need a system TTS voice for the active language; the viewer
+                reports honestly when none is installed.
+              </p>
+            </li>
+          </ul>
         </div>
       </section>
 
@@ -995,8 +1149,8 @@
         <div class="wrap">
           <h2 id="build-h">Build it yourself</h2>
           <p class="sub">
-            Node 20+ and Python 3 are required. There is no backend to configure and no API key to
-            obtain. The feed is anonymous.
+            Node 20+ and Python 3. No backend to configure, no API key to obtain; the feed is
+            anonymous.
           </p>
           <pre><code>git clone https://github.com/franzathome2024-hue/yurewatch.git
 cd yurewatch
@@ -1028,9 +1182,10 @@ bash tools/build-apk.sh   # Android APK (needs the Android SDK)</code></pre>
         </div>
         <p style="margin: 0 0 8px">
           Colophon: written in TypeScript. The map is a hand-rolled canvas renderer (no tile
-          library, no framework), this page is one static HTML file, and both are set in your
-          system font because webfonts are a lot of bytes to spend on an earthquake monitor.
-          No cookies, no analytics, nothing to consent to.
+          library, no framework) and this page is one static HTML file. Headings are set in
+          Fraunces, shipped as two small self-hosted font files because type with a voice is
+          worth about seventy kilobytes; body text uses your system font. No cookies, no
+          analytics, nothing to consent to.
         </p>
         <p style="margin: 0">
           YureWatch is released under the MIT licence. Informational viewer only, not an

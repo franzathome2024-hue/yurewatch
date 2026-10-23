@@ -4,13 +4,18 @@
 
 ### Changed
 
-- **Landing page rewritten in a plainer voice.** A second pass with the
-  external AI-design scanner still flagged the site, so the copy now leads
-  with verifiable specifics (poll intervals, the Sakishima island fill, the
-  30-record saved-history cap, the signing-key story) instead of feature
-  card summaries, the hero gradient is gone, and a short release history
-  plus a colophon were added. No app code changed, so there is no new APK
-  for this one; the change reaches users through the website deploy.
+- **Landing page rebuilt to a workshop layout.** The feature card grid is
+  now a numbered typographic list in two uneven groups, the screenshot
+  card grid became a full-width lead capture, two caption-beside pairs and
+  an uneven strip, the limitations table became a two-column prose list of
+  five, and the hero keeps exactly one button (APK and releases are text
+  links). Palette is a single warm temperature (near-black `#171009`, warm
+  grays) with one accent, the app's amber `#ffc93c`; headings are set in
+  self-hosted Fraunces (two latin subsets, about 73 KB total, Japanese
+  falls back to the platform serif). Copy is otherwise unchanged from the
+  plainer-voice pass (verifiable specifics, signing-key story, release
+  history, colophon). No app code changed, so no new APK; the change
+  reaches users through the website deploy.
 
 ## v0.5.1 — 2026-10-23 (GitHub pre-release)
 
