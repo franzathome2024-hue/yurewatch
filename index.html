@@ -47,15 +47,26 @@
         flex-direction: column;
         justify-content: center;
         gap: 10px;
-        padding: 24px;
+        padding: 32px 24px;
         box-sizing: border-box;
         font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
         color: #778da3;
+        overflow-y: auto;
+      }
+      #boot .boot__inner {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
       #boot .boot__brand {
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.14em;
+        font-family: Georgia, "Hiragino Mincho ProN", "YuMincho", "Noto Serif JP", serif;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
         color: #e9eff7;
       }
       #boot .boot__line {
@@ -86,11 +97,37 @@
         letter-spacing: 0.04em;
       }
       #boot .boot__about {
-        max-width: 46ch;
-        margin: 0;
-        font-size: 12px;
-        line-height: 1.7;
+        margin: 6px 0 0;
+        font-size: 13px;
+        line-height: 1.85;
+        color: #c3d0de;
+      }
+      #boot .boot__list {
+        margin: 4px 0 0;
+        padding-left: 1.15em;
+        font-size: 12.5px;
+        line-height: 1.95;
         color: #a9b8c9;
+      }
+      #boot .boot__en {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.8;
+        color: #a9b8c9;
+      }
+      #boot .boot__links {
+        margin: 10px 0 0;
+        font-size: 12.5px;
+      }
+      #boot .boot__links a {
+        color: #ffd23f;
+        text-underline-offset: 3px;
+      }
+      #boot .boot__src {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.7;
+        color: #778da3;
       }
       /* Shown only when the watchdog decides the bundle never executed. */
       #boot[data-stalled="true"] .boot__line {
@@ -130,16 +167,34 @@
   <body>
     <div id="app"></div>
     <div id="boot">
-      <div class="boot__brand">YureWatch</div>
-      <div class="boot__line" aria-hidden="true"></div>
-      <div class="boot__status" data-boot-status>読み込み中…</div>
-      <p class="boot__about">
-        日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図で確認できる情報閲覧アプリです。気象庁の発表を表示するもので、地震の予測や独自検出は行いません。
-      </p>
-      <p class="boot__detail" data-boot-detail>
-        画面の読み込みに失敗した可能性があります。ビルド済みの単一ファイル版（dist/yurewatch.html）を開くか、アプリを再起動してください。
-      </p>
-      <button type="button" onclick="location.reload()">再読み込み</button>
+      <div class="boot__inner">
+        <div class="boot__brand">YureWatch</div>
+        <div class="boot__line" aria-hidden="true"></div>
+        <div class="boot__status" data-boot-status>読み込み中…</div>
+        <p class="boot__about">
+          日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図で確認できる情報閲覧アプリです。気象庁の発表をP2P地震情報経由で表示するもので、地震の予測や独自検出は行いません。発表されていない項目は推測で埋めず、そのまま「---」と表示します。
+        </p>
+        <ul class="boot__list">
+          <li>最近の地震情報（各地の震度・震源・マグニチュード）</li>
+          <li>緊急地震速報（警報／予報、予測最大震度、到達予測時刻）</li>
+          <li>津波予報（津波予報区ごとの警報・注意報）</li>
+          <li>接続状態やデータの鮮度を示す診断情報</li>
+        </ul>
+        <p class="boot__en">
+          YureWatch is an informational viewer for earthquakes, Earthquake Early Warnings and
+          tsunami forecasts in Japan, as published by the Japan Meteorological Agency and relayed
+          by P2P地震情報. It does not predict or detect earthquakes. Anything the source has not
+          published is shown as ---, never filled in with a guess.
+        </p>
+        <p class="boot__links">
+          <a href="../">概要・スクリーンショット・連絡先（プロジェクトサイト）</a>
+        </p>
+        <p class="boot__src">出典：気象庁、P2P地震情報ほか（詳細はプロジェクトサイトに記載）</p>
+        <p class="boot__detail" data-boot-detail>
+          画面の読み込みに失敗した可能性があります。ビルド済みの単一ファイル版（dist/yurewatch.html）を開くか、アプリを再起動してください。
+        </p>
+        <button type="button" onclick="location.reload()">再読み込み</button>
+      </div>
     </div>
     <noscript>
       <p style="padding: 24px; font-family: sans-serif">

@@ -140,9 +140,9 @@ simulations.
 (also in [SHA256SUMS](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.4.0/SHA256SUMS)),
 built from tag `v0.4.0` (`3103af9`), 226,233 B, versionCode 6 / versionName 0.4.0.
 
-**Pre-release (v0.5.1, supersedes the v0.5.0 pre-release):**
-[yurewatch-0.5.1.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.5.1/yurewatch-0.5.1.apk)
-on the [v0.5.1 pre-release](https://github.com/franzathome2024-hue/yurewatch/releases/tag/v0.5.1)
+**Pre-release (v0.5.2, supersedes the v0.5.1 pre-release):**
+[yurewatch-0.5.2.apk](https://github.com/franzathome2024-hue/yurewatch/releases/download/v0.5.2/yurewatch-0.5.2.apk)
+on the [v0.5.2 pre-release](https://github.com/franzathome2024-hue/yurewatch/releases/tag/v0.5.2)
 page (verify with its attached `SHA256SUMS`). This is a branch-CI build
 signed with a throwaway key — **not** the project release key — so it
 cannot update an existing install and release-key builds cannot update

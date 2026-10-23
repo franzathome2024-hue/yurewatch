@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## v0.5.2 — 2026-10-23 (GitHub pre-release)
 
 ### Changed
 
+- **The viewer loading screen is a real introduction now.** A site scan of
+  `/viewer/` only ever sees the pre-JavaScript shell, which said almost
+  nothing. The boot screen now carries a proper description in Japanese
+  and English, a four-item list of what the viewer shows, the data-source
+  attribution and a link to the project site, in a serif wordmark, while
+  keeping the watchdog/stalled behaviour and the app's own palette. The
+  app itself is otherwise unchanged.
 - **Landing page rebuilt to a workshop layout.** The feature card grid is
   now a numbered typographic list in two uneven groups, the screenshot
   card grid became a full-width lead capture, two caption-beside pairs and
