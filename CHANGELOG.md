@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.5.4 — 2026-10-23 (GitHub pre-release)
+
+### Changed
+
+- **Simulation is recognisable by pattern, not colour.** The
+  `.simBanner` placard and `.badge--sim` now carry monochrome diagonal
+  hatching (drill-placard striping, `repeating-linear-gradient` in ink
+  on the paper fill) on top of the v0.5.3 paper ground. No hue is
+  involved, so nothing simulated can be mistaken for a shindo colour.
+  The word SIMULATION, the banner's placement rules and the
+  hide-it-when-the-alert-already-says-so logic are unchanged.
+- **The header clock reads like a broadcast clock.** 12 px muted to
+  14 px, full text colour, tabular mono, still inside the fixed 52 px
+  header row. The ≤400 px rule that hides it on very narrow phones is
+  unchanged.
+- **Service-worker registration now logs.** The snippet the site build
+  injects into `viewer/` reports success (with scope) and failure via
+  `console.info`/`console.warn`. Still no popups or toasts.
+- All 13 `docs/screenshots/` captures regenerated from this build.
+
+### Deliberately not changed
+
+- **`site/viewer/sw.js`.** An external task spec proposed recreating
+  it as a root-level worker pre-caching `/styles.css`, `/app.js`,
+  `/manifest.json` and `/favicon.ico` with stale-while-revalidate.
+  None of those files exist here (the viewer is one self-contained
+  HTML file; the manifest is `manifest.webmanifest`; paths must be
+  subpath-relative), and stale-while-revalidate on the app shell
+  would serve an old build after a deploy. The existing worker is
+  stricter than the spec: shell-only cache, cross-origin requests
+  (the P2P feed, today and any future provider) never intercepted at
+  all, navigations network-first, `skipWaiting()` + `clients.claim()`
+  already present. `tools/build-site.mjs` enforces that shape and
+  fails the build if the worker ever names the feed.
+
 ## v0.5.3 — 2026-10-23 (GitHub pre-release)
 
 ### Changed

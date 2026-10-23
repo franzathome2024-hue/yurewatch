@@ -229,8 +229,9 @@ button {
 
 .hdr__clock {
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -727,7 +728,16 @@ button {
   /* 3 px padding + 11 px/1.3 text = 25 px tall: it sits on the map, so every
      pixel it claims is a pixel of geography the operator cannot see. */
   padding: 3px 7px;
-  background: #f2f1ec;
+  background-color: #f2f1ec;
+  /* Drill-placard hatching: monochrome stripes, so SIMULATION is
+     unmistakable by pattern, never by a hue that could read as data. */
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(23, 24, 26, 0.14) 0,
+    rgba(23, 24, 26, 0.14) 10px,
+    transparent 10px,
+    transparent 20px
+  );
   border: 1px solid #141518;
   border-radius: var(--r1);
   font-size: 11px;
@@ -2016,7 +2026,14 @@ button {
 .badge--sim {
   color: #17181a;
   border-color: #f2f1ec;
-  background: #f2f1ec;
+  background-color: #f2f1ec;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(23, 24, 26, 0.14) 0,
+    rgba(23, 24, 26, 0.14) 10px,
+    transparent 10px,
+    transparent 20px
+  );
 }
 
 .badge--warn {

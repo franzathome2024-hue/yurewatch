@@ -1,6 +1,6 @@
 {
   "name": "yurewatch",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "type": "module",
   "description": "Japan Earthquake Early Warning (EEW) viewer — map-centric real-time monitoring UI for Android and the web.",

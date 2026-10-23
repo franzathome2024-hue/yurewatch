@@ -159,7 +159,9 @@ function injectViewerExtras(file) {
     '<script data-yw-pwa>' +
     "if('serviceWorker' in navigator){" +
     "window.addEventListener('load',function(){" +
-    "navigator.serviceWorker.register('./sw.js').catch(function(){});" +
+    "navigator.serviceWorker.register('./sw.js')" +
+    ".then(function(r){console.info('[yurewatch] service worker registered:', r.scope);})" +
+    ".catch(function(e){console.warn('[yurewatch] service worker unavailable:', e);});" +
     '});}' +
     '</script>';
   const out = html
