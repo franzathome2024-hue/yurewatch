@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Landing page rewritten in a plainer voice.** A second pass with the
+  external AI-design scanner still flagged the site, so the copy now leads
+  with verifiable specifics (poll intervals, the Sakishima island fill, the
+  30-record saved-history cap, the signing-key story) instead of feature
+  card summaries, the hero gradient is gone, and a short release history
+  plus a colophon were added. No app code changed, so there is no new APK
+  for this one; the change reaches users through the website deploy.
+
 ## v0.5.1 — 2026-10-23 (GitHub pre-release)
 
 Website and app-shell discoverability fixes, prompted by an external

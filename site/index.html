@@ -197,7 +197,7 @@
       .hero {
         padding: 64px 0 40px;
         border-bottom: 1px solid var(--border);
-        background: radial-gradient(120% 100% at 50% 0%, #101c2a 0%, var(--bg) 60%);
+        background: var(--bg);
       }
       .eyebrow {
         display: inline-block;
@@ -335,6 +335,37 @@
         margin: 0;
         color: var(--muted);
         font-size: 0.93rem;
+      }
+
+      /* --------------------------------------------------------- history -- */
+      .history {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-width: 76ch;
+      }
+      .history li {
+        padding: 10px 0;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .history li:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+      .history .v {
+        display: inline-block;
+        min-width: 3.4em;
+        color: var(--text);
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+      .history .d {
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-variant-numeric: tabular-nums;
+        margin-right: 10px;
       }
 
       /* ---------------------------------------------------------- tables -- */
@@ -478,10 +509,11 @@
           <p class="eyebrow">Japan · Earthquake · EEW · Tsunami</p>
           <h1>YureWatch</h1>
           <p class="lede">
-            A map-centric, informational viewer for earthquakes, Earthquake Early Warnings
-            (緊急地震速報 / EEW) and tsunami forecasts (津波予報) across Japan. It shows what the
-            Japan Meteorological Agency has published, on a map, in Japanese or English, and is
-            explicit about what it does not know.
+            YureWatch puts Japan's earthquake information on a map: recent 地震情報, Earthquake
+            Early Warnings (緊急地震速報) and tsunami forecasts (津波予報), as published by the
+            Japan Meteorological Agency and relayed by P2P地震情報. Japanese by default, English
+            if you want it. It is deliberately blunt about the gaps. If the feed has not said
+            something, the screen shows --- instead of a confident-looking guess.
           </p>
           <div class="cta-row">
             <a class="btn btn--primary" href="viewer/">
@@ -502,8 +534,10 @@
             </a>
           </div>
           <p class="cta-note">
-            The viewer runs entirely in your browser: no backend, no account, no analytics.
-            Runs on desktop and mobile.
+            The whole viewer is one self-contained HTML file (about 700 KB). It runs in a
+            browser tab on desktop or a phone, or inside the Android app, with no account and
+            no analytics. Current stable APK is 0.4.0; 0.5.1 is out as a pre-release (see the
+            release history further down for why it is labelled that way).
           </p>
         </div>
       </div>
@@ -512,6 +546,14 @@
       <section aria-labelledby="disclaimer-h">
         <div class="wrap">
           <h2 id="disclaimer-h">What this is, and what it is not</h2>
+          <p class="sub">
+            The short version: JMA does the science, P2P地震情報 relays it, and this page's app
+            draws it on a map. YureWatch adds no measurements of its own. Where it cannot know
+            something (a depth the bulletin left blank, a feed that has gone quiet), it says so
+            on screen rather than smoothing it over. That habit is the main design decision in
+            the whole project, and it is also why the app will sometimes look less certain than
+            other viewers. It is less certain. So are they.
+          </p>
           <div class="callout">
             <h3>Informational only, not a safety device</h3>
             <p>
@@ -540,10 +582,11 @@
         <div class="wrap">
           <h2 id="shots-h">Screenshots</h2>
           <p class="sub">
-            Every image below is a real capture of the shipped viewer, the same single-file build
-            this page links to. No mock-ups. Alert-state shots use the app's demo scenarios
-            (real warnings cannot be captured on demand); the data in those is simulated and
-            the app marks it with its SIMULATION banner in-frame.
+            These are captures of the actual viewer (desktop at 1440×900, phone at 360×800),
+            taken by the project's own QA scripts against the same build the button above
+            opens. Nothing was mocked up in an image editor. The warning shots come from the
+            app's built-in demo scenarios, because a real 警報 does not arrive on request;
+            simulated data always carries the SIMULATION banner in-frame, as it does here.
           </p>
           <div class="shots">
             <figure>
@@ -697,52 +740,76 @@
       <!-- -------------------------------------------------------- features -->
       <section id="features" aria-labelledby="feat-h">
         <div class="wrap">
-          <h2 id="feat-h">Features</h2>
+          <h2 id="feat-h">What it actually does</h2>
           <p class="sub">
-            One codebase and one build produce the Android app, this website's viewer, and the APK.
+            One codebase, one build. The same file is the Android app's screen and this site's
+            viewer, which is why the screenshots above and the app cannot quietly drift apart.
           </p>
           <ul class="features">
             <li>
               <h3>Earthquake information</h3>
               <p>
-                Recent 地震情報 plotted by epicentre with observed 震度 by prefecture. Revisions
-                (震度速報 → 震源情報 → 各地の震度) are merged into one event rather than listed as
-                duplicates.
+                JMA bulletins arrive in stages: 震度速報 first, then 震源情報, then 各地の震度.
+                YureWatch merges those revisions into a single event instead of listing the same
+                earthquake three times. Restart the app offline and it restores up to 30 recent
+                events from local storage, labelled 保存済みの履歴 (saved history), never dressed
+                up as live data. EEW and tsunami state is not stored at all, so yesterday's
+                warning cannot reappear as if it were new.
               </p>
             </li>
             <li>
               <h3>Earthquake Early Warning</h3>
               <p>
-                緊急地震速報 with warning areas, predicted intensity, serial-numbered revisions and
-                cancellations. 警報 and 予報 are labelled differently.
+                A compact monitor window sits at the top-right of the map, in the style of
+                dedicated seismic monitors: state （警報 / 予報 / 更新 / 取消）, the earliest
+                arrival time the source actually published (with a countdown), predicted maximum
+                intensity, epicentre, magnitude and depth. A new event moves the camera once;
+                the following serials do not, because nobody needs their map yanked around every
+                few seconds. 訓練 (test) bulletins are badged, never make a sound, and never move
+                the camera.
               </p>
             </li>
             <li>
               <h3>Tsunami bulletins</h3>
               <p>
-                津波予報 with JMA forecast regions shaded by grade (大津波警報 / 津波警報 /
-                津波注意報), plus advisory and non-effective grades.
+                When a bulletin names forecast regions, the map shades those 津波予報区 by grade
+                （大津波警報 down to 若干の海面変動）. When no bulletin exists, the map shows
+                nothing and the window shows ---. There are no estimated wave heights anywhere
+                in the app, because the feed does not provide observed heights and guessing
+                would be worse than blank space.
               </p>
             </li>
             <li>
-              <h3>Map navigation</h3>
+              <h3>The map itself</h3>
               <p>
-                Pan and zoom a self-contained vector basemap of Japan. No map tiles, no tile
-                server, no API key. The geometry ships inside the app.
+                A hand-rolled canvas renderer, not a tile library: pan, zoom and the EEW pulse
+                hold 60 fps in the project's own benchmark, so nothing fancier was warranted.
+                The coastline starts from Natural Earth, whose 1:10m data quietly drops
+                inhabited islands in the Sakishima chain; a 16-island fill from 国土数値情報
+                (MLIT) puts Ishigaki, Iriomote, Yonaguni and Hateruma back, and the QA suite
+                probes each of them by name so they cannot vanish in a refactor.
               </p>
             </li>
             <li>
-              <h3>Diagnostics &amp; honest state</h3>
+              <h3>Diagnostics, and saying "I don't know"</h3>
               <p>
-                Live, degraded, stale and offline are distinct states. Missing values stay missing:
-                an unknown depth is never drawn as zero.
+                The info panel shows the plumbing: connection state, last successful fetch,
+                rejected records, duplicates dropped. The feed is polled every 20 seconds when
+                quiet and every 6 seconds during an alert, well inside the provider's published
+                limits. A telegram with no usable timestamp is treated as historical, never as
+                breaking news. Stale is labelled stale, offline is labelled offline, and an
+                unknown depth renders as --- rather than a very precise-looking 0 km.
               </p>
             </li>
             <li>
               <h3>Japanese and English</h3>
               <p>
-                Full translation both ways, switchable from the header and remembered. Times are
-                always rendered in JST regardless of device timezone.
+                Japanese is the default because the source material is Japanese; the English
+                translation is complete, and a parity test fails the build if a message exists
+                in one language but not the other. Clock times are always JST, whatever the
+                device thinks its timezone is. Spoken announcements use the device's own TTS
+                voices and tell you plainly when no suitable voice is installed, instead of
+                reading Japanese aloud in the wrong voice.
               </p>
             </li>
           </ul>
@@ -879,6 +946,50 @@
         </div>
       </section>
 
+      <!-- ---------------------------------------------------------- history -->
+      <section id="history" aria-labelledby="history-h">
+        <div class="wrap">
+          <h2 id="history-h">Release history, briefly</h2>
+          <p class="sub">
+            Most of this shipped in one long burst on 22 October 2026, so the version numbers
+            moved faster than the calendar did. The full changelog, including the unflattering
+            parts, is in the repository.
+          </p>
+          <ul class="history">
+            <li>
+              <span class="v">0.1.0</span><span class="d">22 Oct 2026</span>
+              First functional release: canvas map of Japan, the P2P地震情報 feed, the EEW state
+              machine, tsunami panel, nine scripted demo situations, and an installable APK.
+            </li>
+            <li>
+              <span class="v">0.2.1</span><span class="d">22 Oct 2026</span>
+              Spoken alerts with a written-down announcement policy, the real tsunami
+              forecast-region layer, and a coastline audit that recorded what the geometry can
+              and cannot do (the Sakishima island fill came out of that).
+            </li>
+            <li>
+              <span class="v">0.4.0</span><span class="d">22 Oct 2026</span>
+              The current stable release. Its APK checksum was published and then verified the
+              slow way, by downloading the release asset and hashing it again. It was also,
+              in hindsight, signed with a throwaway CI key; see the next entries.
+            </li>
+            <li>
+              <span class="v">0.5.0</span><span class="d">22 Oct 2026</span>
+              The EEW monitor window and camera framing, explicit sound and voice test buttons,
+              and the collapsible sidebar. Published as a pre-release, because the project
+              signing key does not exist yet and a mislabelled "stable" APK would strand
+              anyone who installed it.
+            </li>
+            <li>
+              <span class="v">0.5.1</span><span class="d">23 Oct 2026</span>
+              Structured data for this page and the viewer shell, a contact link, and plainer
+              copy, after an automated site-quality scan complained. Two of its six complaints
+              were wrong; the other four were fair.
+            </li>
+          </ul>
+        </div>
+      </section>
+
       <!-- ----------------------------------------------------------- build -->
       <section id="build" aria-labelledby="build-h">
         <div class="wrap">
@@ -915,6 +1026,12 @@ bash tools/build-apk.sh   # Android APK (needs the Android SDK)</code></pre>
           <a href="https://www.p2pquake.net/" rel="noopener">P2P地震情報</a>
           <a href="https://www.jma.go.jp/bosai/map.html" rel="noopener">気象庁</a>
         </div>
+        <p style="margin: 0 0 8px">
+          Colophon: written in TypeScript. The map is a hand-rolled canvas renderer (no tile
+          library, no framework), this page is one static HTML file, and both are set in your
+          system font because webfonts are a lot of bytes to spend on an earthquake monitor.
+          No cookies, no analytics, nothing to consent to.
+        </p>
         <p style="margin: 0">
           YureWatch is released under the MIT licence. Informational viewer only, not an
           earthquake prediction or detection system, and not a substitute for JMA announcements or
