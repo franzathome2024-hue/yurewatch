@@ -17,6 +17,20 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d141d'/%3E%3Cpath d='M8 34h10l4-12 6 24 6-18 4 6h18' fill='none' stroke='%23ffd23f' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
     />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "YureWatch",
+        "url": "https://franzathome2024-hue.github.io/yurewatch/viewer/",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Android, Web browser",
+        "inLanguage": ["ja", "en"],
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "description": "日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図上で確認できる情報閲覧アプリ。気象庁の発表を表示するもので、地震の予測や独自検出は行いません。Informational viewer for Japan earthquakes, EEW and tsunami forecasts published by JMA. Not a prediction or safety system."
+      }
+    </script>
     <style>
       /* Paint the shell before the bundle executes: no white flash on launch. */
       html,
@@ -71,6 +85,13 @@
         font-size: 12px;
         letter-spacing: 0.04em;
       }
+      #boot .boot__about {
+        max-width: 46ch;
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.7;
+        color: #a9b8c9;
+      }
       /* Shown only when the watchdog decides the bundle never executed. */
       #boot[data-stalled="true"] .boot__line {
         display: none;
@@ -112,6 +133,9 @@
       <div class="boot__brand">YureWatch</div>
       <div class="boot__line" aria-hidden="true"></div>
       <div class="boot__status" data-boot-status>読み込み中…</div>
+      <p class="boot__about">
+        日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図で確認できる情報閲覧アプリです。気象庁の発表を表示するもので、地震の予測や独自検出は行いません。
+      </p>
       <p class="boot__detail" data-boot-detail>
         画面の読み込みに失敗した可能性があります。ビルド済みの単一ファイル版（dist/yurewatch.html）を開くか、アプリを再起動してください。
       </p>
@@ -119,7 +143,7 @@
     </div>
     <noscript>
       <p style="padding: 24px; font-family: sans-serif">
-        YureWatch は JavaScript が必要です。ブラウザの設定で有効にしてください。
+        YureWatch は、日本国内の地震情報・緊急地震速報（EEW）・津波情報を地図で確認できる情報閲覧アプリです。利用には JavaScript が必要です。ブラウザの設定で有効にしてください。地震の予測や独自検出を行うものではありません。最新の地震情報は気象庁の発表を確認してください。
       </p>
     </noscript>
     <!-- Loaded at the end of <body>: the single-file Android build inlines this

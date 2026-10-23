@@ -72,7 +72,7 @@ npm run site:serve     # http://localhost:4173/yurewatch/
 npm run verify:site    # headless-browser checks against that server
 ```
 
-`npm run verify:site` (64 checks) covers: landing-page metadata, favicon,
+`npm run verify:site` (66 checks) covers: landing-page metadata, favicon,
 canonical and social tags; every screenshot decoding with alt text; the
 "Open Live Viewer" CTA resolving under the subpath; skip link, single `h1`,
 landmarks, keyboard focus, no horizontal overflow at 360 px; zero console errors

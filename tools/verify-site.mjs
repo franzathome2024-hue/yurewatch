@@ -90,6 +90,22 @@ const browser = await chromium.launch();
   check(!!meta.icon, 'favicon declared', meta.icon);
   check(meta.lang === 'en', 'html lang attribute set', meta.lang);
 
+  // structured data + a real contact route (added after an external
+  // site-quality scan flagged both as missing; keep them from regressing)
+  const structured = await page.evaluate(() => {
+    const out = { jsonLd: false, contact: false };
+    for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        const d = JSON.parse(s.textContent ?? '');
+        if (d && (d['@type'] || d['@graph'])) out.jsonLd = true;
+      } catch { /* unparseable JSON-LD does not count */ }
+    }
+    out.contact = !!document.querySelector('a[href*="github.com/franzathome2024-hue/yurewatch/issues"]');
+    return out;
+  });
+  check(structured.jsonLd, 'landing carries parseable JSON-LD structured data');
+  check(structured.contact, 'landing links to the issue tracker as its contact route');
+
   // images actually decode
   await page.evaluate(async () => {
     for (const img of document.querySelectorAll('img')) {

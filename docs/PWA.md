@@ -94,7 +94,7 @@ the UI.
 
 ## What was tested
 
-`npm run verify:site` (64 checks, headless Chromium against the artifact
+`npm run verify:site` (66 checks, headless Chromium against the artifact
 served at the production subpath) now includes a PWA section:
 
 1. Manifest linked, served, valid; `start_url`/`scope` resolve inside

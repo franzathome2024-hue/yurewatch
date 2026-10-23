@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.5.1 — 2026-10-23 (GitHub pre-release)
+
+Website and app-shell discoverability fixes, prompted by an external
+site-quality scan. The scan's claims were checked against the deployed
+pages first: two did not hold (the landing page's ten screenshots all carry
+descriptive alt text, and its favicon serves HTTP 200), and the rest were
+real and are fixed here.
+
+### Fixed
+
+- **No structured data**: the landing page and the viewer app shell now
+  carry schema.org JSON-LD (`WebSite`/`SoftwareApplication` on the landing,
+  `WebApplication` in the shell), describing only what the app actually is.
+- **No contact route**: the landing footer now links to the issue tracker
+  as the contact/feedback path. No mail address is published, because the
+  project has none (the owner's profile lists none either); no address was
+  invented to satisfy the scanner.
+- **Thin static text on the viewer shell**: the boot screen and the
+  `<noscript>` block now state what the app is and is not, before any
+  JavaScript runs.
+- **Copy density**: landing-page prose was rewritten to cut em dashes from
+  23 to 3 (the survivors are the `YureWatch — …` title strings), favouring
+  plainer punctuation.
+
+### Notes
+
+- Published as a **pre-release** like v0.5.0: branch-CI APK signed with a
+  throwaway key (not the project release key), uninstall-before-install.
+  Supersedes the v0.5.0 pre-release. See `docs/RELEASING.md`.
+
 ## v0.5.0 — 2026-10-22 (GitHub pre-release)
 
 Published as a **pre-release**: the attached APK is the branch-CI build of

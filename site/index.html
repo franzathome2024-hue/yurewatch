@@ -40,6 +40,35 @@
       content="https://franzathome2024-hue.github.io/yurewatch/assets/screenshots/desktop-live.png"
     />
 
+    <!-- Structured data: what this page and the application actually are. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "YureWatch",
+            "url": "https://franzathome2024-hue.github.io/yurewatch/",
+            "inLanguage": ["ja", "en"],
+            "description": "Informational map viewer for earthquakes, Earthquake Early Warnings (EEW) and tsunami forecasts in Japan, built on JMA information relayed by P2P地震情報."
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "YureWatch",
+            "url": "https://franzathome2024-hue.github.io/yurewatch/viewer/",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "Android, Web browser",
+            "inLanguage": ["ja", "en"],
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "downloadUrl": "https://github.com/franzathome2024-hue/yurewatch/releases",
+            "softwareHelp": "https://github.com/franzathome2024-hue/yurewatch#readme",
+            "description": "Map-centric informational viewer for Japan earthquakes, Earthquake Early Warnings and tsunami forecasts published by the Japan Meteorological Agency. Not a prediction, detection, or safety system."
+          }
+        ]
+      }
+    </script>
+
     <style>
       /* ---------------------------------------------------------- tokens -- */
       :root {
@@ -451,7 +480,7 @@
           <p class="lede">
             A map-centric, informational viewer for earthquakes, Earthquake Early Warnings
             (緊急地震速報 / EEW) and tsunami forecasts (津波予報) across Japan. It shows what the
-            Japan Meteorological Agency has published — on a map, in Japanese or English — and is
+            Japan Meteorological Agency has published, on a map, in Japanese or English, and is
             explicit about what it does not know.
           </p>
           <div class="cta-row">
@@ -473,7 +502,7 @@
             </a>
           </div>
           <p class="cta-note">
-            The viewer runs entirely in your browser — no backend, no account, no analytics.
+            The viewer runs entirely in your browser: no backend, no account, no analytics.
             Runs on desktop and mobile.
           </p>
         </div>
@@ -484,7 +513,7 @@
         <div class="wrap">
           <h2 id="disclaimer-h">What this is, and what it is not</h2>
           <div class="callout">
-            <h3>Informational only — not a safety device</h3>
+            <h3>Informational only, not a safety device</h3>
             <p>
               YureWatch is a <strong>viewer</strong>. It displays earthquake and warning
               information published by the Japan Meteorological Agency (気象庁) and relayed by
@@ -494,7 +523,7 @@
             </p>
             <ul>
               <li>EEW estimates carry error and are revised; false alarms occur.</li>
-              <li>予報 (forecast) and 警報 (warning) are different things — the app labels them differently.</li>
+              <li>予報 (forecast) and 警報 (warning) are different things, and the app labels them differently.</li>
               <li>Communication delays and outages mean information may not arrive at all.</li>
               <li>
                 For anything that matters, follow
@@ -511,7 +540,7 @@
         <div class="wrap">
           <h2 id="shots-h">Screenshots</h2>
           <p class="sub">
-            Every image below is a real capture of the shipped viewer — the same single-file build
+            Every image below is a real capture of the shipped viewer, the same single-file build
             this page links to. No mock-ups. Alert-state shots use the app's demo scenarios
             (real warnings cannot be captured on demand); the data in those is simulated and
             the app marks it with its SIMULATION banner in-frame.
@@ -541,7 +570,7 @@
                 decoding="async"
               />
               <figcaption>
-                <strong>Earthquake Early Warning (警報) — simulation</strong>
+                <strong>Earthquake Early Warning (警報) · simulation</strong>
                 Warning state with predicted maximum intensity and the areas named by the bulletin.
               </figcaption>
             </figure>
@@ -555,8 +584,8 @@
                 decoding="async"
               />
               <figcaption>
-                <strong>Cancelled warning — simulation</strong>
-                A cancellation is a distinct, clearly labelled state — never quietly blended into
+                <strong>Cancelled warning · simulation</strong>
+                A cancellation is a distinct, clearly labelled state, never quietly blended into
                 "no warning".
               </figcaption>
             </figure>
@@ -570,7 +599,7 @@
                 decoding="async"
               />
               <figcaption>
-                <strong>Tsunami forecast regions — simulation</strong>
+                <strong>Tsunami forecast regions · simulation</strong>
                 JMA 津波予報区 shaded by grade when a bulletin names them.
               </figcaption>
             </figure>
@@ -585,7 +614,7 @@
               />
               <figcaption>
                 <strong>Event detail</strong>
-                Origin time, bulletin issue time and local receive time are shown separately — they
+                Origin time, bulletin issue time and local receive time are shown separately. They
                 are not the same clock.
               </figcaption>
             </figure>
@@ -615,7 +644,7 @@
               />
               <figcaption>
                 <strong>Diagnostics</strong>
-                Connection state, data freshness, rejected records and the endpoint in use — the
+                Connection state, data freshness, rejected records and the endpoint in use. The
                 app tells you when it cannot vouch for what it is showing.
               </figcaption>
             </figure>
@@ -643,7 +672,7 @@
                 decoding="async"
               />
               <figcaption>
-                <strong>EEW on a phone — simulation</strong>
+                <strong>EEW on a phone · simulation</strong>
                 The warning banner compacts on short viewports without pushing the map off-screen.
               </figcaption>
             </figure>
@@ -699,7 +728,7 @@
               <h3>Map navigation</h3>
               <p>
                 Pan and zoom a self-contained vector basemap of Japan. No map tiles, no tile
-                server, no API key — the geometry ships inside the app.
+                server, no API key. The geometry ships inside the app.
               </p>
             </li>
             <li>
@@ -757,7 +786,7 @@
                     1:10m, plus a 16-island gap fill from 国土数値情報 (N03, MLIT)
                   </td>
                   <td>
-                    Natural Earth: public domain. N03: 公共データ利用規約 1.0 — attribution required
+                    Natural Earth: public domain. N03: 公共データ利用規約 1.0; attribution required
                     (出典：国土数値情報（行政区域）を加工して作成).
                   </td>
                 </tr>
@@ -765,7 +794,7 @@
                   <td>Tsunami forecast regions</td>
                   <td>気象庁 予報区等GISデータ</td>
                   <td>
-                    公共データ利用規約 1.0 — attribution and a modification statement required
+                    公共データ利用規約 1.0; attribution and a modification statement required
                     (出典：気象庁ホームページ「予報区等GISデータ（津波予報区）」を加工して作成).
                   </td>
                 </tr>
@@ -776,7 +805,7 @@
                       >franzathome2024-hue/yurewatch</a
                     >
                   </td>
-                  <td>MIT — see <code>LICENSE</code> and <code>THIRD_PARTY_NOTICES.md</code>.</td>
+                  <td>MIT. See <code>LICENSE</code> and <code>THIRD_PARTY_NOTICES.md</code>.</td>
                 </tr>
               </tbody>
             </table>
@@ -856,7 +885,7 @@
           <h2 id="build-h">Build it yourself</h2>
           <p class="sub">
             Node 20+ and Python 3 are required. There is no backend to configure and no API key to
-            obtain — the feed is anonymous.
+            obtain. The feed is anonymous.
           </p>
           <pre><code>git clone https://github.com/franzathome2024-hue/yurewatch.git
 cd yurewatch
@@ -869,7 +898,7 @@ npm run site:build # assemble this website + viewer -> _site/
 bash tools/build-apk.sh   # Android APK (needs the Android SDK)</code></pre>
           <p style="color: var(--muted); font-size: 0.92rem">
             The website is this landing page plus <code>dist/yurewatch.html</code> copied to
-            <code>viewer/index.html</code>. One application, one build, three targets — Android,
+            <code>viewer/index.html</code>. One application, one build, three targets: Android,
             web, and this page.
           </p>
         </div>
@@ -882,11 +911,12 @@ bash tools/build-apk.sh   # Android APK (needs the Android SDK)</code></pre>
           <a href="viewer/">Open Live Viewer</a>
           <a href="https://github.com/franzathome2024-hue/yurewatch">Source repository</a>
           <a href="https://github.com/franzathome2024-hue/yurewatch/releases">Releases</a>
+          <a href="https://github.com/franzathome2024-hue/yurewatch/issues">Contact / report an issue</a>
           <a href="https://www.p2pquake.net/" rel="noopener">P2P地震情報</a>
           <a href="https://www.jma.go.jp/bosai/map.html" rel="noopener">気象庁</a>
         </div>
         <p style="margin: 0">
-          YureWatch is released under the MIT licence. Informational viewer only — not an
+          YureWatch is released under the MIT licence. Informational viewer only, not an
           earthquake prediction or detection system, and not a substitute for JMA announcements or
           local authority instructions.
         </p>
